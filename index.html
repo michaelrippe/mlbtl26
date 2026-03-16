@@ -9,462 +9,431 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Libre Franklin', 'Helvetica Neue', sans-serif; background: #F7F6F3; }
-  input:focus { outline: 2px solid #C9A84C; }
-  button:active { transform: scale(0.97); }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Libre Franklin','Helvetica Neue',sans-serif;background:#F7F6F3}
+  input:focus{outline:2px solid #C9A84C}
+  button:active{transform:scale(0.97)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2E7D32;margin-right:6px;animation:pulse 2s infinite}
 </style>
 </head>
 <body>
 <div id="root"></div>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyC8UvEYET3uXzDNHBuOz_PoQj-pLUFEHDs",
+  authDomain:"mlbtl26.firebaseapp.com",
+  databaseURL:"https://mlbtl26-default-rtdb.firebaseio.com",
+  projectId:"mlbtl26",
+  storageBucket:"mlbtl26.firebasestorage.app",
+  messagingSenderId:"609988607987",
+  appId:"1:609988607987:web:7aaf6f783aad1392995c86"
+});
+var db=firebase.database();
+var gameRef=db.ref("game");
+</script>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const {useState,useEffect,useRef,useCallback}=React;
 
-const NAVY = "#1B2A4A", GOLD = "#C9A84C", LIGHT_GOLD = "#FFF8E7", LIGHT_NAVY = "#E8EDF4",
-      GREEN = "#2E7D32", RED = "#C62828", GRAY = "#6B7280", MED_GRAY = "#D1D5DB";
+const NAVY="#1B2A4A",GOLD="#C9A84C",LIGHT_GOLD="#FFF8E7",LIGHT_NAVY="#E8EDF4",
+      GREEN="#2E7D32",RED="#C62828",GRAY="#6B7280",MED_GRAY="#D1D5DB";
 
-const ALL_TEAMS = [
-  "Angels","Astros","Athletics","Blue Jays","Braves","Brewers","Cardinals","Cubs",
-  "Diamondbacks","Dodgers","Giants","Guardians","Mariners","Marlins","Mets","Nationals",
-  "Orioles","Padres","Phillies","Pirates","Rangers","Rays","Red Sox","Reds",
-  "Rockies","Royals","Tigers","Twins","White Sox","Yankees"
-];
+const ALL_TEAMS=["Angels","Astros","Athletics","Blue Jays","Braves","Brewers","Cardinals","Cubs","Diamondbacks","Dodgers","Giants","Guardians","Mariners","Marlins","Mets","Nationals","Orioles","Padres","Phillies","Pirates","Rangers","Rays","Red Sox","Reds","Rockies","Royals","Tigers","Twins","White Sox","Yankees"];
+const OPENING_DAY=new Date("2026-03-25T20:05:00-04:00");
+const MGR_NAMES=["G$","Swaggy","Schoen","Rippe"];
 
-const OPENING_DAY = new Date("2026-03-25T20:05:00-04:00");
-const DEFAULT_RECORDS = {};
-ALL_TEAMS.forEach(t => { DEFAULT_RECORDS[t] = { w: 0, l: 0 }; });
-
-const STORAGE_KEY = "mlb_tl_2026";
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e) {}
-  return null;
+// Firebase stores empty arrays as null. These helpers normalize data on read.
+function safeArr(v){if(!v)return[];if(Array.isArray(v))return v;return Object.values(v);}
+function safePicks(v){
+  if(!v)return[[],[],[],[]];
+  var arr=Array.isArray(v)?v:Object.keys(v).sort().map(k=>v[k]);
+  while(arr.length<4)arr.push([]);
+  return arr.map(a=>safeArr(a));
 }
-function saveState(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+function safeMgrs(v){
+  if(!v)return MGR_NAMES.map(n=>({name:n,teams:[],wsPick:""}));
+  var arr=Array.isArray(v)?v:Object.values(v);
+  return arr.map(m=>({name:m.name||"",teams:safeArr(m.teams),wsPick:m.wsPick||""}));
+}
+function safeRecords(v){
+  if(!v){var o={};ALL_TEAMS.forEach(t=>{o[t]={w:0,l:0}});return o;}
+  var out={};ALL_TEAMS.forEach(t=>{out[t]=v[t]||{w:0,l:0};});
+  return out;
+}
+function safeDraftManagers(v){
+  if(!v)return[...MGR_NAMES];
+  var arr=Array.isArray(v)?v:Object.values(v);
+  while(arr.length<4)arr.push("");
+  return arr;
+}
+function safeDraftOrder(v){
+  if(!v||v==="none")return null;
+  if(Array.isArray(v))return v;
+  return Object.values(v);
 }
 
-const MGR_NAMES = ["G$", "Swaggy", "Schoen", "Rippe"];
-const saved = loadState();
-
-function App() {
-  const [managers, setManagers] = useState(saved?.managers || [
-    { name: "G$", teams: [], wsPick: "" },{ name: "Swaggy", teams: [], wsPick: "" },
-    { name: "Schoen", teams: [], wsPick: "" },{ name: "Rippe", teams: [], wsPick: "" },
-  ]);
-  const [records, setRecords] = useState(saved?.records || DEFAULT_RECORDS);
-  const [activeTab, setActiveTab] = useState("standings");
-  const [editingRecords, setEditingRecords] = useState(false);
-  const [draftMode, setDraftMode] = useState(saved?.draftMode || false);
-  const [draftRound, setDraftRound] = useState(saved?.draftRound || 0);
-  const [draftPick, setDraftPick] = useState(saved?.draftPick || 0);
-  const [draftManagers, setDraftManagers] = useState(saved?.draftManagers || [...MGR_NAMES]);
-  const [draftPicks, setDraftPicks] = useState(saved?.draftPicks || [[],[],[],[]]);
-  const [hoveredTeam, setHoveredTeam] = useState(null);
-  const [draftOrder, setDraftOrder] = useState(saved?.draftOrder || null);
-  const [orderAnimation, setOrderAnimation] = useState(false);
-  const [shuffleDisplay, setShuffleDisplay] = useState(saved?.draftOrder || null);
-  const [draftLocked, setDraftLocked] = useState(saved?.draftLocked || false);
-  const [namesLocked, setNamesLocked] = useState(saved?.namesLocked || false);
-  const [countdown, setCountdown] = useState({ days:0, hours:0, minutes:0, seconds:0, passed:false });
-
-  // Persist state on every meaningful change
-  useEffect(() => {
-    saveState({ managers, records, draftMode, draftRound, draftPick, draftManagers, draftPicks, draftOrder, draftLocked, namesLocked });
-  }, [managers, records, draftMode, draftRound, draftPick, draftManagers, draftPicks, draftOrder, draftLocked, namesLocked]);
-
-  const baseOrder = draftOrder || [0,1,2,3];
-  const snake = [
-    [...baseOrder], [...baseOrder].reverse(), [...baseOrder], [...baseOrder].reverse(),
-    [...baseOrder], [...baseOrder].reverse(), [...baseOrder],
-  ];
-
-  useEffect(() => {
-    const tick = () => {
-      const diff = OPENING_DAY - new Date();
-      if (diff <= 0) { setCountdown({ days:0,hours:0,minutes:0,seconds:0,passed:true }); return; }
-      setCountdown({
-        days: Math.floor(diff/86400000), hours: Math.floor((diff%86400000)/3600000),
-        minutes: Math.floor((diff%3600000)/60000), seconds: Math.floor((diff%60000)/1000), passed: false,
-      });
-    };
-    tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
-  }, []);
-
-  const getStats = (mgr) => {
-    let totalW=0, totalL=0, bestTeam="", bestW=-1;
-    mgr.teams.forEach(t => {
-      const r = records[t] || {w:0,l:0};
-      totalW += r.w; totalL += r.l;
-      if (r.w > bestW) { bestW = r.w; bestTeam = t; }
-    });
-    const pct = (totalW+totalL) > 0 ? totalW/(totalW+totalL) : 0;
-    return { totalW, totalL, pct, bestTeam, bestW, avgW: mgr.teams.length > 0 ? totalW/mgr.teams.length : 0 };
+function normalizeState(d){
+  return{
+    managers:safeMgrs(d.managers),
+    records:safeRecords(d.records),
+    draftMode:!!d.draftMode,
+    draftRound:d.draftRound||0,
+    draftPick:d.draftPick||0,
+    draftManagers:safeDraftManagers(d.draftManagers),
+    draftPicks:safePicks(d.draftPicks),
+    draftOrder:safeDraftOrder(d.draftOrder),
+    draftLocked:!!d.draftLocked,
+    namesLocked:!!d.namesLocked,
   };
+}
 
-  const ranked = [...managers].map(m => ({...m, stats: getStats(m)}))
-    .sort((a,b) => b.stats.totalW - a.stats.totalW || b.stats.bestW - a.stats.bestW);
-  const leader = ranked[0]?.stats.totalW || 0;
-  const draftedTeams = draftPicks.flat();
-  const available = ALL_TEAMS.filter(t => !draftedTeams.includes(t));
-  const currentDrafter = draftRound < 7 ? snake[draftRound][draftPick] : -1;
-
-  const handlePick = (team) => {
-    if (currentDrafter < 0 || draftLocked || draftedTeams.includes(team)) return;
-    const np = draftPicks.map(a => [...a]);
-    np[currentDrafter].push(team);
-    setDraftPicks(np);
-    if (!namesLocked) setNamesLocked(true);
-    let nxP = draftPick+1, nxR = draftRound;
-    if (nxP >= 4) { nxP = 0; nxR++; }
-    setDraftPick(nxP); setDraftRound(nxR);
-    if (nxR >= 7) {
-      setManagers(managers.map((m,i) => ({...m, name: draftManagers[i]||m.name, teams: np[i]})));
-      setDraftLocked(true); setDraftMode(false);
-    }
+function makeDefault(){
+  var r={};ALL_TEAMS.forEach(t=>{r[t]={w:0,l:0};});
+  return{
+    managers:MGR_NAMES.map(n=>({name:n,teams:["_"],wsPick:""})),
+    records:r,
+    draftMode:false,draftRound:0,draftPick:0,
+    draftManagers:[...MGR_NAMES],
+    draftPicks:[["_"],["_"],["_"],["_"]],// placeholder so Firebase doesn't delete
+    draftOrder:"none",draftLocked:false,namesLocked:false,
   };
+}
 
-  const resetDraft = () => {
-    if (draftLocked) return;
-    setDraftRound(0); setDraftPick(0); setDraftPicks([[],[],[],[]]);
-    setDraftManagers(managers.map((m,i)=>m.name||MGR_NAMES[i])); setNamesLocked(false);
-    setDraftOrder(null); setShuffleDisplay(null); setOrderAnimation(false);
-    setDraftMode(true); setActiveTab("draft");
-  };
+function App(){
+  const[state,setState]=useState(null);
+  const[activeTab,setActiveTab]=useState("standings");
+  const[editingRecords,setEditingRecords]=useState(false);
+  const[orderAnimation,setOrderAnimation]=useState(false);
+  const[shuffleDisplay,setShuffleDisplay]=useState(null);
+  const[countdown,setCountdown]=useState({days:0,hours:0,minutes:0,seconds:0,passed:false});
+  const[connected,setConnected]=useState(false);
+  const writing=useRef(false);
 
-  const randomize = () => {
-    if (draftOrder !== null || !draftManagers.every(n=>n.trim())) return;
-    setOrderAnimation(true);
-    let ct = 0;
-    const si = setInterval(() => {
-      const t = [0,1,2,3];
-      for (let i=3;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [t[i],t[j]]=[t[j],t[i]]; }
-      setShuffleDisplay([...t]); ct++;
-      if (ct >= 15) {
-        clearInterval(si);
-        const f = [0,1,2,3];
-        for (let i=3;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [f[i],f[j]]=[f[j],f[i]]; }
-        setDraftOrder(f); setShuffleDisplay(f); setNamesLocked(true);
-        setTimeout(() => setOrderAnimation(false), 500);
+  useEffect(()=>{
+    gameRef.on("value",snap=>{
+      if(writing.current){writing.current=false;return;}
+      var data=snap.val();
+      if(data){
+        var s=normalizeState(data);
+        // Clean placeholder values
+        s.managers.forEach(m=>{m.teams=m.teams.filter(t=>t!=="_");});
+        s.draftPicks=s.draftPicks.map(a=>a.filter(t=>t!=="_"));
+        setState(s);
+        setConnected(true);
+        if(s.draftOrder)setShuffleDisplay(s.draftOrder);
+      }else{
+        gameRef.set(makeDefault());
+        setState(normalizeState(makeDefault()));
+        setConnected(true);
       }
-    }, 120);
+    });
+    return()=>gameRef.off();
+  },[]);
+
+  useEffect(()=>{
+    var tick=()=>{
+      var diff=OPENING_DAY-new Date();
+      if(diff<=0){setCountdown({days:0,hours:0,minutes:0,seconds:0,passed:true});return;}
+      setCountdown({days:Math.floor(diff/864e5),hours:Math.floor((diff%864e5)/36e5),minutes:Math.floor((diff%36e5)/6e4),seconds:Math.floor((diff%6e4)/1e3),passed:false});
+    };
+    tick();var id=setInterval(tick,1000);return()=>clearInterval(id);
+  },[]);
+
+  const push=useCallback((updates)=>{
+    // Firebase deletes null/empty arrays. Use placeholders.
+    var safe={...updates};
+    if(safe.draftPicks){safe.draftPicks=safe.draftPicks.map(a=>a.length===0?["_"]:a);}
+    if(safe.managers){safe.managers=safe.managers.map(m=>({...m,teams:m.teams.length===0?["_"]:m.teams}));}
+    if(safe.draftOrder===null)safe.draftOrder="none";
+    writing.current=true;
+    var next=normalizeState({...state,...updates});
+    next.managers.forEach(m=>{m.teams=m.teams.filter(t=>t!=="_");});
+    next.draftPicks=next.draftPicks.map(a=>a.filter(t=>t!=="_"));
+    setState(next);
+    gameRef.update(safe);
+  },[state]);
+
+  if(!state)return React.createElement("div",{style:{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",fontFamily:"'Playfair Display',serif",fontSize:24,color:NAVY}},"⚾ Loading...");
+
+  var{managers,records,draftMode,draftRound,draftPick,draftManagers,draftPicks,draftOrder,draftLocked,namesLocked}=state;
+  var baseOrder=draftOrder||[0,1,2,3];
+  var snake=[[...baseOrder],[...baseOrder].reverse(),[...baseOrder],[...baseOrder].reverse(),[...baseOrder],[...baseOrder].reverse(),[...baseOrder]];
+
+  var getStats=(mgr)=>{
+    var totalW=0,totalL=0,bestTeam="",bestW=-1;
+    (mgr.teams||[]).forEach(t=>{var r=records[t]||{w:0,l:0};totalW+=r.w;totalL+=r.l;if(r.w>bestW){bestW=r.w;bestTeam=t;}});
+    var pct=(totalW+totalL)>0?totalW/(totalW+totalL):0;
+    return{totalW,totalL,pct,bestTeam,bestW,avgW:(mgr.teams||[]).length>0?totalW/(mgr.teams||[]).length:0};
   };
 
-  const allNamed = draftManagers.every(n=>n.trim()!=="");
-  const tabs = [{id:"standings",label:"Standings"},{id:"rosters",label:"Rosters"},{id:"draft",label:"Draft Board"},{id:"records",label:"MLB Data"}];
+  var ranked=[...managers].map(m=>({...m,stats:getStats(m)})).sort((a,b)=>b.stats.totalW-a.stats.totalW||b.stats.bestW-a.stats.bestW);
+  var leader=ranked[0]?ranked[0].stats.totalW:0;
+  var draftedTeams=draftPicks.flat();
+  var available=ALL_TEAMS.filter(t=>!draftedTeams.includes(t));
+  var currentDrafter=draftRound<7?snake[draftRound][draftPick]:-1;
+  var allNamed=draftManagers.every(n=>(n||"").trim()!=="");
 
-  return (
-    React.createElement("div", {style:{fontFamily:"'Libre Franklin','Helvetica Neue',sans-serif",background:"#F7F6F3",minHeight:"100vh"}},
+  var handlePick=(team)=>{
+    if(currentDrafter<0||draftLocked||draftedTeams.includes(team))return;
+    var np=draftPicks.map(a=>[...a]);
+    np[currentDrafter].push(team);
+    var nxP=draftPick+1,nxR=draftRound;
+    if(nxP>=4){nxP=0;nxR++;}
+    var updates={draftPicks:np,draftPick:nxP,draftRound:nxR,namesLocked:true};
+    if(nxR>=7){
+      updates.managers=managers.map((m,i)=>({...m,name:draftManagers[i]||m.name,teams:np[i]}));
+      updates.draftLocked=true;updates.draftMode=false;
+    }
+    push(updates);
+  };
 
-      /* HEADER */
-      React.createElement("div", {style:{background:NAVY,padding:"28px 32px 20px",position:"relative",overflow:"hidden"}},
-        React.createElement("div", {style:{position:"absolute",top:0,right:0,width:300,height:"100%",background:`linear-gradient(135deg, transparent 40%, ${GOLD}15)`,pointerEvents:"none"}}),
-        React.createElement("div", {style:{display:"flex",justifyContent:"space-between",alignItems:"flex-end",position:"relative"}},
-          React.createElement("div", null,
-            React.createElement("div", {style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:4,textTransform:"uppercase",marginBottom:4}}, "⚾ The Official"),
-            React.createElement("h1", {style:{color:"#fff",fontSize:32,fontWeight:900,margin:0,fontFamily:"'Playfair Display',serif",letterSpacing:-0.5}},
-              "MLB Team League ", React.createElement("span", {style:{color:GOLD}}, "2026"))
-          ),
-          React.createElement("div", {style:{color:GOLD,fontSize:12,fontWeight:600,letterSpacing:1,textAlign:"right"}},
-            "DEFENDING CHAMP: RIPPE",
-            React.createElement("div", {style:{fontSize:10,color:"#ffffff80",marginTop:2}}, "Est. 2015"))
+  var resetDraft=()=>{
+    if(draftLocked)return;
+    push({draftRound:0,draftPick:0,draftPicks:[[],[],[],[]],draftManagers:managers.map((m,i)=>m.name||MGR_NAMES[i]||""),namesLocked:false,draftOrder:null,draftMode:true,draftLocked:false});
+    setShuffleDisplay(null);setOrderAnimation(false);setActiveTab("draft");
+  };
+
+  var randomize=()=>{
+    if(draftOrder!==null||!allNamed)return;
+    setOrderAnimation(true);
+    var ct=0;
+    var si=setInterval(()=>{
+      var t=[0,1,2,3];for(var i=3;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=t[i];t[i]=t[j];t[j]=tmp;}
+      setShuffleDisplay([...t]);ct++;
+      if(ct>=15){clearInterval(si);
+        var f=[0,1,2,3];for(var i=3;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=f[i];f[i]=f[j];f[j]=tmp;}
+        setShuffleDisplay(f);push({draftOrder:f,namesLocked:true});setTimeout(()=>setOrderAnimation(false),500);
+      }
+    },120);
+  };
+
+  var updateDM=(i,val)=>{if(namesLocked)return;var nm=[...draftManagers];nm[i]=val;push({draftManagers:nm});};
+  var updateRec=(team,field,val)=>{push({records:{...records,[team]:{...records[team],[field]:parseInt(val)||0}}});};
+
+  var tabs=[{id:"standings",label:"Standings"},{id:"rosters",label:"Rosters"},{id:"draft",label:"Draft Board"},{id:"records",label:"MLB Data"}];
+  var h=React.createElement;
+
+  return h("div",{style:{fontFamily:"'Libre Franklin','Helvetica Neue',sans-serif",background:"#F7F6F3",minHeight:"100vh"}},
+    // HEADER
+    h("div",{style:{background:NAVY,padding:"28px 32px 20px",position:"relative",overflow:"hidden"}},
+      h("div",{style:{position:"absolute",top:0,right:0,width:300,height:"100%",background:"linear-gradient(135deg, transparent 40%, "+GOLD+"15)",pointerEvents:"none"}}),
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-end",position:"relative"}},
+        h("div",null,
+          h("div",{style:{color:GOLD,fontSize:11,fontWeight:700,letterSpacing:4,textTransform:"uppercase",marginBottom:4}},"⚾ The Official"),
+          h("h1",{style:{color:"#fff",fontSize:32,fontWeight:900,margin:0,fontFamily:"'Playfair Display',serif",letterSpacing:-0.5}},
+            "MLB Team League ",h("span",{style:{color:GOLD}},"2026"))
         ),
-        /* Countdown */
-        React.createElement("div", {style:{marginTop:16,background:`${GOLD}15`,borderRadius:8,padding:"12px 20px",display:"flex",justifyContent:"center",alignItems:"center",gap:24,border:`1px solid ${GOLD}30`,flexWrap:"wrap"}},
-          React.createElement("div", {style:{fontSize:11,color:GOLD,fontWeight:700,letterSpacing:2,textTransform:"uppercase"}},
-            countdown.passed ? "⚾ SEASON IS LIVE" : "FIRST PITCH — NYY @ SF"),
-          !countdown.passed ?
-            React.createElement("div", {style:{display:"flex",gap:16}},
-              [{val:countdown.days,label:"DAYS"},{val:countdown.hours,label:"HRS"},{val:countdown.minutes,label:"MIN"},{val:countdown.seconds,label:"SEC"}].map(({val,label}) =>
-                React.createElement("div", {key:label,style:{textAlign:"center"}},
-                  React.createElement("div", {style:{fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",lineHeight:1}}, String(val).padStart(2,"0")),
-                  React.createElement("div", {style:{fontSize:8,color:GOLD,fontWeight:700,letterSpacing:1.5,marginTop:2}}, label))
-              )
-            ) :
-            React.createElement("div", {style:{fontSize:14,fontWeight:800,color:"#fff"}}, "March 25, 2026 · 8:05 PM ET · Netflix"),
-          React.createElement("div", {style:{fontSize:10,color:"#ffffff60"}}, "MAR 25 · 8:05 PM ET")
-        ),
-        /* Tabs */
-        React.createElement("div", {style:{display:"flex",gap:0,marginTop:20,borderBottom:`2px solid ${GOLD}33`}},
-          tabs.map(t => React.createElement("button", {key:t.id,onClick:()=>setActiveTab(t.id),style:{
-            background:activeTab===t.id?GOLD:"transparent",color:activeTab===t.id?NAVY:"#ffffff99",
-            border:"none",padding:"10px 24px",fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",
-            cursor:"pointer",borderRadius:"6px 6px 0 0",transition:"all 0.2s",fontFamily:"'Libre Franklin',sans-serif"
-          }}, t.label))
+        h("div",{style:{color:GOLD,fontSize:12,fontWeight:600,letterSpacing:1,textAlign:"right"}},
+          "DEFENDING CHAMP: RIPPE",
+          h("div",{style:{fontSize:10,color:"#ffffff80",marginTop:2}},"Est. 2015 ",h("span",{style:{display:"inline-block",width:8,height:8,borderRadius:"50%",background:connected?"#2E7D32":"#C62828",marginLeft:6,animation:"pulse 2s infinite"}}),h("span",{style:{color:connected?"#4CAF50":"#C62828",fontSize:9,fontWeight:700,marginLeft:4}},connected?"LIVE":"●●●"))
         )
       ),
+      // Countdown
+      h("div",{style:{marginTop:16,background:GOLD+"15",borderRadius:8,padding:"12px 20px",display:"flex",justifyContent:"center",alignItems:"center",gap:24,border:"1px solid "+GOLD+"30",flexWrap:"wrap"}},
+        h("div",{style:{fontSize:11,color:GOLD,fontWeight:700,letterSpacing:2,textTransform:"uppercase"}},countdown.passed?"⚾ SEASON IS LIVE":"FIRST PITCH — NYY @ SF"),
+        !countdown.passed?
+          h("div",{style:{display:"flex",gap:16}},
+            [{v:countdown.days,l:"DAYS"},{v:countdown.hours,l:"HRS"},{v:countdown.minutes,l:"MIN"},{v:countdown.seconds,l:"SEC"}].map(function(x){return h("div",{key:x.l,style:{textAlign:"center"}},
+              h("div",{style:{fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",lineHeight:1}},String(x.v).padStart(2,"0")),
+              h("div",{style:{fontSize:8,color:GOLD,fontWeight:700,letterSpacing:1.5,marginTop:2}},x.l))})
+          ):h("div",{style:{fontSize:14,fontWeight:800,color:"#fff"}},"March 25, 2026 · 8:05 PM ET · Netflix"),
+        h("div",{style:{fontSize:10,color:"#ffffff60"}},"MAR 25 · 8:05 PM ET")
+      ),
+      // Tabs
+      h("div",{style:{display:"flex",gap:0,marginTop:20,borderBottom:"2px solid "+GOLD+"33"}},
+        tabs.map(function(t){return h("button",{key:t.id,onClick:function(){setActiveTab(t.id)},style:{
+          background:activeTab===t.id?GOLD:"transparent",color:activeTab===t.id?NAVY:"#ffffff99",
+          border:"none",padding:"10px 24px",fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",
+          cursor:"pointer",borderRadius:"6px 6px 0 0",transition:"all 0.2s",fontFamily:"'Libre Franklin',sans-serif"
+        }},t.label)})
+      )
+    ),
 
-      React.createElement("div", {style:{maxWidth:1100,margin:"0 auto",padding:"24px 16px"}},
+    h("div",{style:{maxWidth:1100,margin:"0 auto",padding:"24px 16px"}},
 
-        /* STANDINGS TAB */
-        activeTab==="standings" && React.createElement("div", null,
-          /* Prize Pool */
-          React.createElement("div", {style:{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}},
-            [["Reg Season","$150","$50 entry"],["World Series","$75","$25 entry"],["Best Team","🏆","Bragging Rights"]].map(([label,prize,sub]) =>
-              React.createElement("div", {key:label,style:{flex:1,minWidth:180,background:"#fff",borderRadius:10,padding:"16px 20px",border:`1px solid ${GOLD}40`,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}},
-                React.createElement("div", {style:{fontSize:11,color:GRAY,fontWeight:600,letterSpacing:1,textTransform:"uppercase"}}, label),
-                React.createElement("div", {style:{fontSize:28,fontWeight:900,color:NAVY,fontFamily:"'Playfair Display',serif",marginTop:4}}, prize),
-                React.createElement("div", {style:{fontSize:11,color:GRAY,marginTop:2}}, sub))
-            )
-          ),
-          /* Standings Table */
-          React.createElement("div", {style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}},
-            React.createElement("div", {style:{background:NAVY,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}},
-              React.createElement("span", {style:{color:"#fff",fontSize:14,fontWeight:700,letterSpacing:1}}, "LEAGUE STANDINGS"),
-              React.createElement("span", {style:{color:GOLD,fontSize:11}}, "7 TEAMS PER MANAGER")
+      // STANDINGS
+      activeTab==="standings"&&h("div",null,
+        h("div",{style:{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}},
+          [["Reg Season","$150","$50 entry"],["World Series","$75","$25 entry"],["Best Team","🏆","Bragging Rights"]].map(function(x){return h("div",{key:x[0],style:{flex:1,minWidth:180,background:"#fff",borderRadius:10,padding:"16px 20px",border:"1px solid "+GOLD+"40",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}},
+            h("div",{style:{fontSize:11,color:GRAY,fontWeight:600,letterSpacing:1,textTransform:"uppercase"}},x[0]),
+            h("div",{style:{fontSize:28,fontWeight:900,color:NAVY,fontFamily:"'Playfair Display',serif",marginTop:4}},x[1]),
+            h("div",{style:{fontSize:11,color:GRAY,marginTop:2}},x[2]))})
+        ),
+        h("div",{style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}},
+          h("div",{style:{background:NAVY,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+            h("span",{style:{color:"#fff",fontSize:14,fontWeight:700,letterSpacing:1}},"LEAGUE STANDINGS"),
+            h("span",{style:{color:GOLD,fontSize:11}},"7 TEAMS PER MANAGER")),
+          h("table",{style:{width:"100%",borderCollapse:"collapse"}},
+            h("thead",null,h("tr",{style:{background:LIGHT_NAVY}},
+              ["RK","MANAGER","W","L","PCT","GB","AVG W","BEST TEAM"].map(function(hd){return h("th",{key:hd,style:{padding:"10px 16px",fontSize:10,fontWeight:700,color:NAVY,letterSpacing:1.5,textAlign:hd==="MANAGER"?"left":"center",borderBottom:"2px solid "+NAVY+"15"}},hd)}))),
+            h("tbody",null,ranked.map(function(m,i){
+              var gb=i===0?"—":(leader-m.stats.totalW);
+              return h("tr",{key:m.name||i,style:{background:i===0?LIGHT_GOLD:i%2===0?"#FAFAFA":"#fff"}},
+                h("td",{style:{padding:"14px 16px",textAlign:"center",fontWeight:800,fontSize:18,color:i===0?GOLD:NAVY,fontFamily:"'Playfair Display',serif"}},i+1),
+                h("td",{style:{padding:"14px 16px",fontWeight:700,fontSize:15,color:NAVY}},m.name||"—",i===0?" 👑":""),
+                h("td",{style:{textAlign:"center",fontWeight:800,fontSize:16,color:GREEN}},m.stats.totalW),
+                h("td",{style:{textAlign:"center",color:GRAY,fontSize:14}},m.stats.totalL),
+                h("td",{style:{textAlign:"center",fontWeight:600,fontSize:14,color:NAVY}},m.stats.pct.toFixed(3)),
+                h("td",{style:{textAlign:"center",fontSize:14,color:typeof gb==="number"?RED:GRAY,fontWeight:600}},gb),
+                h("td",{style:{textAlign:"center",fontSize:13,color:GRAY}},m.stats.avgW.toFixed(1)),
+                h("td",{style:{textAlign:"center",fontSize:13,fontWeight:600,color:NAVY}},m.stats.bestTeam,m.stats.bestW>0?" ("+m.stats.bestW+"W)":""));
+            }))
+          )
+        ),
+        h("div",{style:{marginTop:24,padding:"16px 20px",background:"#fff",borderRadius:10,border:"1px solid #E5E5E5"}},
+          h("div",{style:{fontSize:11,fontWeight:700,color:NAVY,letterSpacing:1.5,marginBottom:8}},"LEAGUE RULES"),
+          h("div",{style:{fontSize:12,color:GRAY,lineHeight:1.8}},
+            "Snake draft (7 rds) · 4 managers · 28 teams drafted · Highest total wins = champion · Tiebreaker: In the event of a tie, the manager with the team with the most wins wins · Entry: $75/mgr ($50 reg + $25 WS) · Prize pool: $225 · ",
+            h("span",{style:{fontWeight:700,color:GOLD}},"Draft Day: March 11, 2026")))
+      ),
+
+      // ROSTERS
+      activeTab==="rosters"&&h("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:16}},
+        ranked.map(function(m,mi){return h("div",{key:m.name||mi,style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}},
+          h("div",{style:{background:NAVY,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+            h("span",{style:{color:"#fff",fontWeight:700,fontSize:15}},m.name||"—"),
+            h("span",{style:{color:GOLD,fontWeight:800,fontSize:18,fontFamily:"'Playfair Display',serif"}},m.stats.totalW+"W")),
+          h("table",{style:{width:"100%",borderCollapse:"collapse"}},
+            h("thead",null,h("tr",{style:{background:LIGHT_NAVY}},
+              h("th",{style:{padding:"8px 14px",fontSize:10,fontWeight:700,color:NAVY,textAlign:"left",letterSpacing:1}},"TEAM"),
+              h("th",{style:{padding:"8px 10px",fontSize:10,fontWeight:700,color:NAVY,textAlign:"center",letterSpacing:1}},"W"),
+              h("th",{style:{padding:"8px 10px",fontSize:10,fontWeight:700,color:NAVY,textAlign:"center",letterSpacing:1}},"L"))),
+            h("tbody",null,[...(m.teams||[])].sort(function(a,b){return(records[b]?records[b].w:0)-(records[a]?records[a].w:0)}).map(function(t,ti){
+              var r=records[t]||{w:0,l:0};
+              return h("tr",{key:t,style:{background:ti%2===0?"#FAFAFA":"#fff",borderLeft:t===m.stats.bestTeam?"3px solid "+GOLD:"3px solid transparent"}},
+                h("td",{style:{padding:"10px 14px",fontSize:13,fontWeight:500,color:NAVY}},t),
+                h("td",{style:{textAlign:"center",fontSize:13,fontWeight:700,color:GREEN}},r.w),
+                h("td",{style:{textAlign:"center",fontSize:13,color:GRAY}},r.l))})),
+            h("tfoot",null,h("tr",{style:{background:LIGHT_GOLD}},
+              h("td",{style:{padding:"10px 14px",fontWeight:700,fontSize:12,color:NAVY}},"TOTAL"),
+              h("td",{style:{textAlign:"center",fontWeight:800,fontSize:14,color:GREEN}},m.stats.totalW),
+              h("td",{style:{textAlign:"center",fontWeight:700,fontSize:13,color:NAVY}},m.stats.totalL)))
+          ))})
+      ),
+
+      // DRAFT
+      activeTab==="draft"&&h("div",null,
+        !draftMode?
+          h("div",{style:{textAlign:"center",padding:40}},
+            h("div",{style:{fontSize:18,fontWeight:700,color:NAVY,marginBottom:12}},draftLocked?"2026 Draft Complete":"Ready to draft for 2026?"),
+            h("div",{style:{fontSize:15,fontWeight:700,color:GOLD,marginBottom:8}},"📅 DRAFT DAY: March 11, 2026"),
+            h("div",{style:{fontSize:13,color:GRAY,marginBottom:24}},"Snake format · 7 rounds · 4 managers · 28 picks"),
+            draftLocked?
+              h("div",{style:{color:RED,fontSize:13,fontWeight:600}},"🔒 All picks are final and locked in"):
+              h("button",{onClick:resetDraft,style:{background:GOLD,color:NAVY,border:"none",padding:"14px 36px",fontSize:14,fontWeight:800,borderRadius:8,cursor:"pointer",letterSpacing:1,fontFamily:"'Libre Franklin',sans-serif"}},"START DRAFT")
+          ):
+          h("div",null,
+            // Manager inputs
+            h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}},
+              draftManagers.map(function(name,i){return h("div",{key:i},
+                h("div",{style:{fontSize:10,fontWeight:700,color:GRAY,letterSpacing:1,marginBottom:4}},"MANAGER "+(i+1)),
+                h("input",{value:name||"",onChange:function(e){updateDM(i,e.target.value)},placeholder:"Manager "+(i+1),disabled:namesLocked,style:{
+                  width:"100%",padding:"10px 12px",border:currentDrafter===i&&draftOrder?"2px solid "+GOLD:"1px solid #DDD",
+                  borderRadius:6,fontSize:14,fontWeight:600,color:NAVY,boxSizing:"border-box",
+                  background:namesLocked?"#F3F3F3":(currentDrafter===i&&draftOrder?LIGHT_GOLD:"#fff"),
+                  fontFamily:"'Libre Franklin',sans-serif",opacity:namesLocked?0.8:1}}))})
             ),
-            React.createElement("table", {style:{width:"100%",borderCollapse:"collapse"}},
-              React.createElement("thead", null,
-                React.createElement("tr", {style:{background:LIGHT_NAVY}},
-                  ["RK","MANAGER","W","L","PCT","GB","AVG W","BEST TEAM"].map(h =>
-                    React.createElement("th", {key:h,style:{padding:"10px 16px",fontSize:10,fontWeight:700,color:NAVY,letterSpacing:1.5,textTransform:"uppercase",textAlign:h==="MANAGER"?"left":"center",borderBottom:`2px solid ${NAVY}15`}}, h))
-                )
-              ),
-              React.createElement("tbody", null,
-                ranked.map((m,i) => {
-                  const gb = i===0?"—":(leader-m.stats.totalW);
-                  return React.createElement("tr", {key:m.name||i,style:{background:i===0?LIGHT_GOLD:i%2===0?"#FAFAFA":"#fff",transition:"background 0.15s"}},
-                    React.createElement("td", {style:{padding:"14px 16px",textAlign:"center",fontWeight:800,fontSize:18,color:i===0?GOLD:NAVY,fontFamily:"'Playfair Display',serif"}}, i+1),
-                    React.createElement("td", {style:{padding:"14px 16px",fontWeight:700,fontSize:15,color:NAVY}}, m.name||"—", i===0?" 👑":""),
-                    React.createElement("td", {style:{textAlign:"center",fontWeight:800,fontSize:16,color:GREEN}}, m.stats.totalW),
-                    React.createElement("td", {style:{textAlign:"center",color:GRAY,fontSize:14}}, m.stats.totalL),
-                    React.createElement("td", {style:{textAlign:"center",fontWeight:600,fontSize:14,color:NAVY}}, m.stats.pct.toFixed(3)),
-                    React.createElement("td", {style:{textAlign:"center",fontSize:14,color:typeof gb==="number"?RED:GRAY,fontWeight:600}}, gb),
-                    React.createElement("td", {style:{textAlign:"center",fontSize:13,color:GRAY}}, m.stats.avgW.toFixed(1)),
-                    React.createElement("td", {style:{textAlign:"center",fontSize:13,fontWeight:600,color:NAVY}}, m.stats.bestTeam, m.stats.bestW>0?` (${m.stats.bestW}W)`:"")
-                  );
-                })
+            // Randomizer
+            !draftOrder&&h("div",{style:{textAlign:"center",padding:32,background:"#fff",borderRadius:12,border:"1px solid #E5E5E5",marginBottom:20}},
+              shuffleDisplay?
+                h("div",{style:{marginBottom:24}},
+                  h("div",{style:{fontSize:11,fontWeight:700,color:GRAY,letterSpacing:2,marginBottom:16}},orderAnimation?"RANDOMIZING...":"DRAFT ORDER SET"),
+                  h("div",{style:{display:"flex",justifyContent:"center",gap:16,flexWrap:"wrap"}},
+                    shuffleDisplay.map(function(mIdx,pos){return h("div",{key:pos,style:{background:orderAnimation?NAVY+"10":NAVY,borderRadius:10,padding:"16px 20px",minWidth:100,transition:"all 0.15s",border:"2px solid "+(orderAnimation?GOLD+"50":GOLD)}},
+                      h("div",{style:{fontSize:28,fontWeight:900,color:orderAnimation?NAVY:GOLD,fontFamily:"'Playfair Display',serif"}},"#"+(pos+1)),
+                      h("div",{style:{fontSize:13,fontWeight:700,marginTop:4,color:orderAnimation?GRAY:"#fff"}},draftManagers[mIdx]||"Mgr "+(mIdx+1)))}))
+                ):
+                h("div",null,
+                  h("div",{style:{fontSize:22,marginBottom:8}},"🎲"),
+                  h("div",{style:{fontSize:16,fontWeight:700,color:NAVY,marginBottom:4}},"Draft Order Randomizer"),
+                  h("div",{style:{fontSize:12,color:GRAY,marginBottom:20}},"Enter all 4 manager names above, then click below to randomly determine the draft order. ",h("br"),h("span",{style:{fontWeight:700,color:RED}},"This can only be done once — the result is final."))),
+              h("button",{onClick:randomize,disabled:orderAnimation||!allNamed,style:{
+                background:allNamed&&!orderAnimation?GOLD:MED_GRAY,color:allNamed?NAVY:"#999",
+                border:"none",padding:"14px 40px",fontSize:14,fontWeight:800,borderRadius:8,
+                cursor:allNamed&&!orderAnimation?"pointer":"not-allowed",letterSpacing:1,
+                fontFamily:"'Libre Franklin',sans-serif",transition:"all 0.2s"
+              }},orderAnimation?"RANDOMIZING...":shuffleDisplay?"ORDER LOCKED":"🎲 RANDOMIZE DRAFT ORDER"),
+              !allNamed&&!shuffleDisplay&&h("div",{style:{fontSize:11,color:RED,marginTop:8}},"Enter all 4 manager names to enable randomizer")
+            ),
+            // Draft order banner
+            draftOrder&&h("div",{style:{background:NAVY,borderRadius:10,padding:"14px 24px",marginBottom:16,display:"flex",justifyContent:"center",alignItems:"center",gap:24,flexWrap:"wrap"}},
+              h("span",{style:{fontSize:11,fontWeight:700,color:GOLD,letterSpacing:2}},"DRAFT ORDER"),
+              draftOrder.map(function(mIdx,pos){return h("div",{key:pos,style:{display:"flex",alignItems:"center",gap:6}},
+                h("span",{style:{fontSize:16,fontWeight:900,color:GOLD,fontFamily:"'Playfair Display',serif"}},(pos+1)+"."),
+                h("span",{style:{fontSize:13,fontWeight:600,color:"#fff"}},draftManagers[mIdx]))}),
+              h("span",{style:{fontSize:10,color:"#ffffff50"}},"🔒 LOCKED")),
+            // Draft status
+            draftOrder&&draftRound<7&&h("div",{style:{background:LIGHT_GOLD,borderRadius:8,padding:"12px 20px",marginBottom:16,border:"1px solid "+GOLD+"60",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}},
+              h("div",null,
+                h("span",{style:{fontWeight:800,color:NAVY,fontSize:14}},"Round "+(draftRound+1)),
+                h("span",{style:{color:GRAY,margin:"0 8px"}},"·"),
+                h("span",{style:{fontWeight:600,color:GOLD,fontSize:14}},(draftManagers[currentDrafter]||"Manager "+(currentDrafter+1))+" is on the clock")),
+              h("span",{style:{fontSize:12,color:GRAY}},"Pick #"+(draftRound*4+draftPick+1)+" of 28")),
+            // Draft board
+            draftOrder&&h("div",{style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",marginBottom:20,overflowX:"auto"}},
+              h("table",{style:{width:"100%",borderCollapse:"collapse",minWidth:500}},
+                h("thead",null,h("tr",{style:{background:NAVY}},
+                  h("th",{style:{padding:"10px",color:"#fff",fontSize:10,fontWeight:700,letterSpacing:1,width:40}},"RD"),
+                  draftOrder.map(function(mIdx,pos){return h("th",{key:pos,style:{padding:"10px 16px",color:"#fff",fontSize:12,fontWeight:700}},
+                    draftManagers[mIdx]||"Manager "+(mIdx+1),h("div",{style:{fontSize:9,color:GOLD,fontWeight:400,marginTop:2}},"Pick #"+(pos+1)))}))),
+                h("tbody",null,[0,1,2,3,4,5,6].map(function(rd){return h("tr",{key:rd,style:{background:rd%2===0?"#FAFAFA":"#fff"}},
+                  h("td",{style:{textAlign:"center",fontWeight:800,color:NAVY,fontSize:14,padding:10,background:LIGHT_NAVY}},rd+1),
+                  draftOrder.map(function(mIdx,colPos){
+                    var picks=draftPicks[mIdx]||[];
+                    var tp=picks[rd]||"";
+                    var isCur=draftRound===rd&&currentDrafter===mIdx&&!tp;
+                    return h("td",{key:colPos,style:{padding:"10px 16px",textAlign:"center",fontSize:13,fontWeight:tp?600:400,color:tp?NAVY:"#CCC",background:isCur?GOLD+"25":"inherit",border:isCur?"2px solid "+GOLD:"none"}},tp||(isCur?"⏳":"—"));
+                  }))}))
               )
-            )
-          ),
-          /* Rules */
-          React.createElement("div", {style:{marginTop:24,padding:"16px 20px",background:"#fff",borderRadius:10,border:"1px solid #E5E5E5"}},
-            React.createElement("div", {style:{fontSize:11,fontWeight:700,color:NAVY,letterSpacing:1.5,marginBottom:8}}, "LEAGUE RULES"),
-            React.createElement("div", {style:{fontSize:12,color:GRAY,lineHeight:1.8}},
-              "Snake draft (7 rds) · 4 managers · 28 teams drafted · Highest total wins = champion · Tiebreaker: In the event of a tie, the manager with the team with the most wins wins · Entry: $75/mgr ($50 reg + $25 WS) · Prize pool: $225 · ",
-              React.createElement("span", {style:{fontWeight:700,color:GOLD}}, "Draft Day: March 16, 2026"))
+            ),
+            // Available teams
+            draftOrder&&draftRound<7&&h("div",null,
+              h("div",{style:{fontSize:11,fontWeight:700,color:NAVY,letterSpacing:1.5,marginBottom:10}},"AVAILABLE TEAMS ("+available.length+" remaining)"),
+              h("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},
+                available.map(function(t){return h("button",{key:t,onClick:function(){handlePick(t)},style:{
+                  background:"#fff",border:"1px solid #DDD",borderRadius:6,padding:"8px 16px",fontSize:13,fontWeight:500,color:NAVY,cursor:"pointer",transition:"all 0.15s",fontFamily:"'Libre Franklin',sans-serif"
+                },onMouseEnter:function(e){e.currentTarget.style.background=LIGHT_GOLD;e.currentTarget.style.borderColor=GOLD;},
+                  onMouseLeave:function(e){e.currentTarget.style.background="#fff";e.currentTarget.style.borderColor="#DDD";}},t)}))
+            ),
+            // Draft complete
+            draftRound>=7&&h("div",{style:{textAlign:"center",padding:20,background:LIGHT_GOLD,borderRadius:10,border:"1px solid "+GOLD}},
+              h("div",{style:{fontSize:24,marginBottom:4}},"🎉"),
+              h("div",{style:{fontSize:16,fontWeight:800,color:NAVY}},"Draft Complete — Rosters Locked!"),
+              h("div",{style:{fontSize:13,color:GRAY,marginTop:4}},"All picks are final. Check the Standings and Rosters tabs."),
+              h("div",{style:{marginTop:8,fontSize:12,color:GRAY}},"Undrafted: "+(ALL_TEAMS.filter(function(t){return!draftedTeams.includes(t)}).join(", ")||"None")),
+              h("div",{style:{marginTop:8,fontSize:11,color:RED,fontWeight:600}},"🔒 Picks cannot be changed"))
           )
-        ),
-
-        /* ROSTERS TAB */
-        activeTab==="rosters" && React.createElement("div", {style:{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:16}},
-          ranked.map((m,mi) =>
-            React.createElement("div", {key:m.name||mi,style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",boxShadow:"0 2px 8px rgba(0,0,0,0.04)"}},
-              React.createElement("div", {style:{background:NAVY,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}},
-                React.createElement("span", {style:{color:"#fff",fontWeight:700,fontSize:15}}, m.name||"—"),
-                React.createElement("span", {style:{color:GOLD,fontWeight:800,fontSize:18,fontFamily:"'Playfair Display',serif"}}, m.stats.totalW+"W")
-              ),
-              React.createElement("table", {style:{width:"100%",borderCollapse:"collapse"}},
-                React.createElement("thead", null,
-                  React.createElement("tr", {style:{background:LIGHT_NAVY}},
-                    React.createElement("th", {style:{padding:"8px 14px",fontSize:10,fontWeight:700,color:NAVY,textAlign:"left",letterSpacing:1}}, "TEAM"),
-                    React.createElement("th", {style:{padding:"8px 10px",fontSize:10,fontWeight:700,color:NAVY,textAlign:"center",letterSpacing:1}}, "W"),
-                    React.createElement("th", {style:{padding:"8px 10px",fontSize:10,fontWeight:700,color:NAVY,textAlign:"center",letterSpacing:1}}, "L"))
-                ),
-                React.createElement("tbody", null,
-                  [...m.teams].sort((a,b) => (records[b]?.w||0)-(records[a]?.w||0)).map((t,ti) => {
-                    const r = records[t]||{w:0,l:0};
-                    return React.createElement("tr", {key:t,style:{background:ti%2===0?"#FAFAFA":"#fff",borderLeft:t===m.stats.bestTeam?`3px solid ${GOLD}`:"3px solid transparent"}},
-                      React.createElement("td", {style:{padding:"10px 14px",fontSize:13,fontWeight:500,color:NAVY}}, t),
-                      React.createElement("td", {style:{textAlign:"center",fontSize:13,fontWeight:700,color:GREEN}}, r.w),
-                      React.createElement("td", {style:{textAlign:"center",fontSize:13,color:GRAY}}, r.l));
-                  })
-                ),
-                React.createElement("tfoot", null,
-                  React.createElement("tr", {style:{background:LIGHT_GOLD}},
-                    React.createElement("td", {style:{padding:"10px 14px",fontWeight:700,fontSize:12,color:NAVY}}, "TOTAL"),
-                    React.createElement("td", {style:{textAlign:"center",fontWeight:800,fontSize:14,color:GREEN}}, m.stats.totalW),
-                    React.createElement("td", {style:{textAlign:"center",fontWeight:700,fontSize:13,color:NAVY}}, m.stats.totalL))
-                )
-              )
-            )
-          )
-        ),
-
-        /* DRAFT TAB */
-        activeTab==="draft" && React.createElement("div", null,
-          !draftMode ?
-            React.createElement("div", {style:{textAlign:"center",padding:40}},
-              React.createElement("div", {style:{fontSize:18,fontWeight:700,color:NAVY,marginBottom:12}}, draftLocked?"2026 Draft Complete":"Ready to draft for 2026?"),
-              React.createElement("div", {style:{fontSize:15,fontWeight:700,color:GOLD,marginBottom:8}}, "📅 DRAFT DAY: March 16, 2026"),
-              React.createElement("div", {style:{fontSize:13,color:GRAY,marginBottom:24}}, "Snake format · 7 rounds · 4 managers · 28 picks"),
-              draftLocked ?
-                React.createElement("div", {style:{color:RED,fontSize:13,fontWeight:600}}, "🔒 All picks are final and locked in") :
-                React.createElement("button", {onClick:resetDraft,style:{background:GOLD,color:NAVY,border:"none",padding:"14px 36px",fontSize:14,fontWeight:800,borderRadius:8,cursor:"pointer",letterSpacing:1,fontFamily:"'Libre Franklin',sans-serif"}}, "START DRAFT")
-            ) :
-            React.createElement("div", null,
-              /* Manager Inputs */
-              React.createElement("div", {style:{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",gap:12,marginBottom:20}},
-                draftManagers.map((name,i) =>
-                  React.createElement("div", {key:i},
-                    React.createElement("div", {style:{fontSize:10,fontWeight:700,color:GRAY,letterSpacing:1,marginBottom:4}}, "MANAGER "+(i+1)),
-                    React.createElement("input", {value:name,onChange:e=>{if(namesLocked)return;const n=[...draftManagers];n[i]=e.target.value;setDraftManagers(n);},
-                      placeholder:"Manager "+(i+1),disabled:namesLocked,style:{
-                        width:"100%",padding:"10px 12px",border:currentDrafter===i&&draftOrder?`2px solid ${GOLD}`:"1px solid #DDD",
-                        borderRadius:6,fontSize:14,fontWeight:600,color:NAVY,boxSizing:"border-box",
-                        background:namesLocked?"#F3F3F3":(currentDrafter===i&&draftOrder?LIGHT_GOLD:"#fff"),
-                        fontFamily:"'Libre Franklin',sans-serif",opacity:namesLocked?0.8:1
-                      }}))
-                )
-              ),
-              /* Randomizer */
-              !draftOrder && React.createElement("div", {style:{textAlign:"center",padding:32,background:"#fff",borderRadius:12,border:"1px solid #E5E5E5",marginBottom:20}},
-                shuffleDisplay ?
-                  React.createElement("div", {style:{marginBottom:24}},
-                    React.createElement("div", {style:{fontSize:11,fontWeight:700,color:GRAY,letterSpacing:2,marginBottom:16}}, orderAnimation?"RANDOMIZING...":"DRAFT ORDER SET"),
-                    React.createElement("div", {style:{display:"flex",justifyContent:"center",gap:16,flexWrap:"wrap"}},
-                      shuffleDisplay.map((mIdx,pos) =>
-                        React.createElement("div", {key:pos,style:{background:orderAnimation?`${NAVY}10`:NAVY,borderRadius:10,padding:"16px 20px",minWidth:100,transition:"all 0.15s",border:`2px solid ${orderAnimation?GOLD+"50":GOLD}`}},
-                          React.createElement("div", {style:{fontSize:28,fontWeight:900,color:orderAnimation?NAVY:GOLD,fontFamily:"'Playfair Display',serif"}}, "#"+(pos+1)),
-                          React.createElement("div", {style:{fontSize:13,fontWeight:700,marginTop:4,color:orderAnimation?GRAY:"#fff"}}, draftManagers[mIdx]||"Mgr "+(mIdx+1)))
-                      )
-                    )
-                  ) :
-                  React.createElement("div", null,
-                    React.createElement("div", {style:{fontSize:22,marginBottom:8}}, "🎲"),
-                    React.createElement("div", {style:{fontSize:16,fontWeight:700,color:NAVY,marginBottom:4}}, "Draft Order Randomizer"),
-                    React.createElement("div", {style:{fontSize:12,color:GRAY,marginBottom:20}},
-                      "Enter all 4 manager names above, then click below to randomly determine the draft order.",
-                      React.createElement("br"), React.createElement("span", {style:{fontWeight:700,color:RED}}, "This can only be done once — the result is final."))
-                  ),
-                React.createElement("button", {onClick:randomize,disabled:orderAnimation||!allNamed,style:{
-                  background:allNamed&&!orderAnimation?GOLD:MED_GRAY,color:allNamed?NAVY:"#999",
-                  border:"none",padding:"14px 40px",fontSize:14,fontWeight:800,borderRadius:8,
-                  cursor:allNamed&&!orderAnimation?"pointer":"not-allowed",letterSpacing:1,
-                  fontFamily:"'Libre Franklin',sans-serif",transition:"all 0.2s"
-                }}, orderAnimation?"RANDOMIZING...":shuffleDisplay?"ORDER LOCKED":"🎲 RANDOMIZE DRAFT ORDER"),
-                !allNamed && !shuffleDisplay && React.createElement("div", {style:{fontSize:11,color:RED,marginTop:8}}, "Enter all 4 manager names to enable randomizer")
-              ),
-              /* Draft Order Banner */
-              draftOrder && React.createElement("div", {style:{background:NAVY,borderRadius:10,padding:"14px 24px",marginBottom:16,display:"flex",justifyContent:"center",alignItems:"center",gap:24,flexWrap:"wrap"}},
-                React.createElement("span", {style:{fontSize:11,fontWeight:700,color:GOLD,letterSpacing:2}}, "DRAFT ORDER"),
-                draftOrder.map((mIdx,pos) =>
-                  React.createElement("div", {key:pos,style:{display:"flex",alignItems:"center",gap:6}},
-                    React.createElement("span", {style:{fontSize:16,fontWeight:900,color:GOLD,fontFamily:"'Playfair Display',serif"}}, (pos+1)+"."),
-                    React.createElement("span", {style:{fontSize:13,fontWeight:600,color:"#fff"}}, draftManagers[mIdx]))
-                ),
-                React.createElement("span", {style:{fontSize:10,color:"#ffffff50"}}, "🔒 LOCKED")
-              ),
-              /* Draft Status */
-              draftOrder && draftRound < 7 && React.createElement("div", {style:{background:LIGHT_GOLD,borderRadius:8,padding:"12px 20px",marginBottom:16,border:`1px solid ${GOLD}60`,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}},
-                React.createElement("div", null,
-                  React.createElement("span", {style:{fontWeight:800,color:NAVY,fontSize:14}}, "Round "+(draftRound+1)),
-                  React.createElement("span", {style:{color:GRAY,margin:"0 8px"}}, "·"),
-                  React.createElement("span", {style:{fontWeight:600,color:GOLD,fontSize:14}}, (draftManagers[currentDrafter]||"Manager "+(currentDrafter+1))+" is on the clock")
-                ),
-                React.createElement("span", {style:{fontSize:12,color:GRAY}}, "Pick #"+(draftRound*4+draftPick+1)+" of 28")
-              ),
-              /* Draft Board Table */
-              draftOrder && React.createElement("div", {style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",marginBottom:20,overflowX:"auto"}},
-                React.createElement("table", {style:{width:"100%",borderCollapse:"collapse",minWidth:500}},
-                  React.createElement("thead", null,
-                    React.createElement("tr", {style:{background:NAVY}},
-                      React.createElement("th", {style:{padding:"10px",color:"#fff",fontSize:10,fontWeight:700,letterSpacing:1,width:40}}, "RD"),
-                      draftOrder.map((mIdx,pos) =>
-                        React.createElement("th", {key:pos,style:{padding:"10px 16px",color:"#fff",fontSize:12,fontWeight:700}},
-                          draftManagers[mIdx]||"Manager "+(mIdx+1),
-                          React.createElement("div", {style:{fontSize:9,color:GOLD,fontWeight:400,marginTop:2}}, "Pick #"+(pos+1)))
-                      )
-                    )
-                  ),
-                  React.createElement("tbody", null,
-                    [0,1,2,3,4,5,6].map(rd =>
-                      React.createElement("tr", {key:rd,style:{background:rd%2===0?"#FAFAFA":"#fff"}},
-                        React.createElement("td", {style:{textAlign:"center",fontWeight:800,color:NAVY,fontSize:14,padding:10,background:LIGHT_NAVY}}, rd+1),
-                        draftOrder.map((mIdx,colPos) => {
-                          const tp = draftPicks[mIdx]?.[rd]||"";
-                          const isCur = draftRound===rd && currentDrafter===mIdx && !tp;
-                          return React.createElement("td", {key:colPos,style:{
-                            padding:"10px 16px",textAlign:"center",fontSize:13,
-                            fontWeight:tp?600:400,color:tp?NAVY:"#CCC",
-                            background:isCur?`${GOLD}25`:"inherit",
-                            border:isCur?`2px solid ${GOLD}`:"none"
-                          }}, tp||(isCur?"⏳":"—"));
-                        })
-                      )
-                    )
-                  )
-                )
-              ),
-              /* Available Teams */
-              draftOrder && draftRound < 7 && React.createElement("div", null,
-                React.createElement("div", {style:{fontSize:11,fontWeight:700,color:NAVY,letterSpacing:1.5,marginBottom:10}}, "AVAILABLE TEAMS ("+available.length+" remaining)"),
-                React.createElement("div", {style:{display:"flex",flexWrap:"wrap",gap:8}},
-                  available.map(t =>
-                    React.createElement("button", {key:t,onClick:()=>handlePick(t),style:{
-                      background:"#fff",border:"1px solid #DDD",borderRadius:6,padding:"8px 16px",
-                      fontSize:13,fontWeight:500,color:NAVY,cursor:"pointer",transition:"all 0.15s",
-                      fontFamily:"'Libre Franklin',sans-serif"
-                    },onMouseEnter:e=>{e.currentTarget.style.background=LIGHT_GOLD;e.currentTarget.style.borderColor=GOLD;},
-                      onMouseLeave:e=>{e.currentTarget.style.background="#fff";e.currentTarget.style.borderColor="#DDD";}}, t)
-                  )
-                )
-              ),
-              /* Draft Complete */
-              draftRound >= 7 && React.createElement("div", {style:{textAlign:"center",padding:20,background:LIGHT_GOLD,borderRadius:10,border:`1px solid ${GOLD}`}},
-                React.createElement("div", {style:{fontSize:24,marginBottom:4}}, "🎉"),
-                React.createElement("div", {style:{fontSize:16,fontWeight:800,color:NAVY}}, "Draft Complete — Rosters Locked!"),
-                React.createElement("div", {style:{fontSize:13,color:GRAY,marginTop:4}}, "All picks are final. Check the Standings and Rosters tabs."),
-                React.createElement("div", {style:{marginTop:8,fontSize:12,color:GRAY}}, "Undrafted: "+(ALL_TEAMS.filter(t=>!draftPicks.flat().includes(t)).join(", ")||"None")),
-                React.createElement("div", {style:{marginTop:8,fontSize:11,color:RED,fontWeight:600}}, "🔒 Picks cannot be changed")
-              )
-            )
-        ),
-
-        /* MLB DATA TAB */
-        activeTab==="records" && React.createElement("div", null,
-          React.createElement("div", {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}},
-            React.createElement("div", {style:{fontSize:11,fontWeight:700,color:NAVY,letterSpacing:1.5}}, "MLB TEAM RECORDS"),
-            React.createElement("button", {onClick:()=>setEditingRecords(!editingRecords),style:{
-              background:editingRecords?GREEN:NAVY,color:"#fff",border:"none",padding:"8px 20px",
-              fontSize:12,fontWeight:700,borderRadius:6,cursor:"pointer",letterSpacing:0.5,fontFamily:"'Libre Franklin',sans-serif"
-            }}, editingRecords?"✓ Done":"Edit Records")
-          ),
-          React.createElement("div", {style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",overflowX:"auto"}},
-            React.createElement("table", {style:{width:"100%",borderCollapse:"collapse",minWidth:450}},
-              React.createElement("thead", null,
-                React.createElement("tr", {style:{background:NAVY}},
-                  ["TEAM","W","L","PCT","OWNER"].map(h =>
-                    React.createElement("th", {key:h,style:{padding:"10px 16px",color:"#fff",fontSize:10,fontWeight:700,letterSpacing:1.5,textAlign:h==="TEAM"||h==="OWNER"?"left":"center"}}, h))
-                )
-              ),
-              React.createElement("tbody", null,
-                [...ALL_TEAMS].sort((a,b)=>(records[b]?.w||0)-(records[a]?.w||0)).map((t,i) => {
-                  const r = records[t]||{w:0,l:0};
-                  const owner = managers.find(m=>m.teams.includes(t))?.name||"—";
-                  const pct = (r.w+r.l)>0?(r.w/(r.w+r.l)).toFixed(3):".000";
-                  return React.createElement("tr", {key:t,style:{background:i%2===0?"#FAFAFA":"#fff"}},
-                    React.createElement("td", {style:{padding:"10px 16px",fontWeight:600,fontSize:13,color:NAVY}}, t),
-                    React.createElement("td", {style:{textAlign:"center",padding:"10px 8px"}},
-                      editingRecords ?
-                        React.createElement("input", {type:"number",value:r.w,onChange:e=>setRecords(p=>({...p,[t]:{...p[t],w:parseInt(e.target.value)||0}})),
-                          style:{width:50,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:4,fontSize:13,fontWeight:700,color:GREEN,fontFamily:"'Libre Franklin'"}}) :
-                        React.createElement("span", {style:{fontWeight:700,color:GREEN,fontSize:13}}, r.w)
-                    ),
-                    React.createElement("td", {style:{textAlign:"center",padding:"10px 8px"}},
-                      editingRecords ?
-                        React.createElement("input", {type:"number",value:r.l,onChange:e=>setRecords(p=>({...p,[t]:{...p[t],l:parseInt(e.target.value)||0}})),
-                          style:{width:50,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:4,fontSize:13,color:GRAY,fontFamily:"'Libre Franklin'"}}) :
-                        React.createElement("span", {style:{color:GRAY,fontSize:13}}, r.l)
-                    ),
-                    React.createElement("td", {style:{textAlign:"center",fontSize:13,color:NAVY}}, pct),
-                    React.createElement("td", {style:{padding:"10px 16px",fontSize:12,color:owner==="—"?"#CCC":GOLD,fontWeight:600}}, owner)
-                  );
-                })
-              )
-            )
-          )
-        )
       ),
 
-      /* Footer */
-      React.createElement("div", {style:{textAlign:"center",padding:"24px 0 32px",fontSize:11,color:GRAY}},
-        "MLB Team League 2026 · Est. 2015 · $225 Prize Pool · Defending Champ: Rippe")
-    )
+      // MLB DATA
+      activeTab==="records"&&h("div",null,
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}},
+          h("div",{style:{fontSize:11,fontWeight:700,color:NAVY,letterSpacing:1.5}},"MLB TEAM RECORDS"),
+          h("button",{onClick:function(){setEditingRecords(!editingRecords)},style:{background:editingRecords?GREEN:NAVY,color:"#fff",border:"none",padding:"8px 20px",fontSize:12,fontWeight:700,borderRadius:6,cursor:"pointer",letterSpacing:.5,fontFamily:"'Libre Franklin',sans-serif"}},editingRecords?"✓ Done":"Edit Records")),
+        h("div",{style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",overflowX:"auto"}},
+          h("table",{style:{width:"100%",borderCollapse:"collapse",minWidth:450}},
+            h("thead",null,h("tr",{style:{background:NAVY}},
+              ["TEAM","W","L","PCT","OWNER"].map(function(hd){return h("th",{key:hd,style:{padding:"10px 16px",color:"#fff",fontSize:10,fontWeight:700,letterSpacing:1.5,textAlign:hd==="TEAM"||hd==="OWNER"?"left":"center"}},hd)}))),
+            h("tbody",null,[...ALL_TEAMS].sort(function(a,b){return(records[b]?records[b].w:0)-(records[a]?records[a].w:0)}).map(function(t,i){
+              var r=records[t]||{w:0,l:0};
+              var owner="—";managers.forEach(function(m){if((m.teams||[]).includes(t))owner=m.name;});
+              var pct=(r.w+r.l)>0?(r.w/(r.w+r.l)).toFixed(3):".000";
+              return h("tr",{key:t,style:{background:i%2===0?"#FAFAFA":"#fff"}},
+                h("td",{style:{padding:"10px 16px",fontWeight:600,fontSize:13,color:NAVY}},t),
+                h("td",{style:{textAlign:"center",padding:"10px 8px"}},
+                  editingRecords?h("input",{type:"number",value:r.w,onChange:function(e){updateRec(t,"w",e.target.value)},style:{width:50,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:4,fontSize:13,fontWeight:700,color:GREEN,fontFamily:"'Libre Franklin'"}}):h("span",{style:{fontWeight:700,color:GREEN,fontSize:13}},r.w)),
+                h("td",{style:{textAlign:"center",padding:"10px 8px"}},
+                  editingRecords?h("input",{type:"number",value:r.l,onChange:function(e){updateRec(t,"l",e.target.value)},style:{width:50,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:4,fontSize:13,color:GRAY,fontFamily:"'Libre Franklin'"}}):h("span",{style:{color:GRAY,fontSize:13}},r.l)),
+                h("td",{style:{textAlign:"center",fontSize:13,color:NAVY}},pct),
+                h("td",{style:{padding:"10px 16px",fontSize:12,color:owner==="—"?"#CCC":GOLD,fontWeight:600}},owner));
+            }))
+          ))
+      )
+    ),
+    h("div",{style:{textAlign:"center",padding:"24px 0 32px",fontSize:11,color:GRAY}},"MLB Team League 2026 · Est. 2015 · $225 Prize Pool · Defending Champ: Rippe")
   );
 }
 
