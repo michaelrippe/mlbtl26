@@ -107,7 +107,15 @@ function App() {
   const [admin, setAdmin] = React.useState(false);
   const [pwd, setPwd] = React.useState("");
   const skip = React.useRef(false);
+  const prevPickCount = React.useRef(0);
   const isAdmin = pwd === "rippe26";
+
+  // Request notification permission
+  React.useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const N="#1B2A4A",G="#C9A84C",LG="#FFF8E7",LN="#E8EDF4",GR="#2E7D32",RD="#C62828",GY="#6B7280",MG="#D1D5DB";
 
@@ -127,6 +135,33 @@ function App() {
         setState(ns);
         setLive(true);
         if (ns.draftOrder) setShuffled(ns.draftOrder);
+        // Browser notification on new pick
+        var totalPicks = ns.draftPicks.reduce(function(a,b){return a+b.length},0);
+        if (totalPicks > prevPickCount.current && prevPickCount.current > 0 && "Notification" in window && Notification.permission === "granted") {
+          // Find what was just picked
+          var allPicked = [];
+          ns.draftPicks.forEach(function(arr,mIdx){
+            arr.forEach(function(team,rd){allPicked.push({team:team,mgr:ns.draftManagers[mIdx],rd:rd+1})});
+          });
+          var lastPick = allPicked[allPicked.length-1];
+          if (lastPick) {
+            var nextRd = ns.draftRound + 1;
+            var nextMgr = "";
+            if (ns.draftRound < 7) {
+              var b2 = ns.draftOrder || [0,1,2,3];
+              var snk2 = [0,1,2,3,4,5,6].map(function(i){return i%2===0?[].concat(b2):[].concat(b2).reverse()});
+              var nextIdx = snk2[ns.draftRound][ns.draftPick];
+              nextMgr = ns.draftManagers[nextIdx] || "";
+            }
+            try {
+              new Notification("⚾ MLB Team League Pick!", {
+                body: lastPick.mgr + " drafted the " + lastPick.team + (nextMgr ? "\n" + nextMgr + " is on the clock!" : "\nDraft complete!"),
+                icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚾</text></svg>"
+              });
+            } catch(e) {}
+          }
+        }
+        prevPickCount.current = totalPicks;
       } else {
         GAME.set(defaultData());
         setState(normalize(defaultData()));
@@ -304,6 +339,14 @@ function App() {
       </div>
 
       <div style={{maxWidth:1100,margin:"0 auto",padding:"24px 16px"}}>
+
+        {/* Notification banner */}
+        {"Notification" in window && Notification.permission !== "granted" && (
+          <div style={{background:"#fff",borderRadius:8,padding:"12px 20px",marginBottom:16,border:"1px solid "+G+"40",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+            <div style={{fontSize:12,color:N}}>🔔 <strong>Enable notifications</strong> to get alerts when picks are made</div>
+            <button onClick={()=>Notification.requestPermission()} style={{background:G,color:N,border:"none",borderRadius:6,padding:"6px 16px",fontSize:11,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>ENABLE</button>
+          </div>
+        )}
 
         {/* STANDINGS */}
         {tab==="standings" && (
