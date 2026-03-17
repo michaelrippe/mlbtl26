@@ -303,7 +303,17 @@ function App() {
   }
 
   const ranked = [].concat(mgrs).map(m=>({...m,s:stats(m)})).sort((a,b)=>b.s.tw-a.s.tw||b.s.bw-a.s.bw);
-  const top = ranked[0]?ranked[0].s.tw:0;
+
+  // Live rosters - build from draftPicks during draft so standings/rosters update in real time
+  const liveMgrs = dmg.map(function(name, i) {
+    return {name: name || MNAMES[i] || "", teams: dpk[i] || [], wsPick: ""};
+  });
+  const liveRanked = [].concat(liveMgrs).map(m=>({...m,s:stats(m)})).sort((a,b)=>b.s.tw-a.s.tw||b.s.bw-a.s.bw);
+  // Use live rosters during draft, final rosters after draft
+  const displayRanked = dm || (dor && !dlk) ? liveRanked : ranked;
+  const displayMgrs = dm || (dor && !dlk) ? liveMgrs : mgrs;
+
+  const top = displayRanked[0]?displayRanked[0].s.tw:0;
   const taken = dpk.reduce((a,b)=>a.concat(b),[]);
   const avail = ALL_TEAMS.filter(t=>!taken.includes(t));
   const cur = dr<7?snk[dr][dp]:-1;
@@ -466,7 +476,7 @@ function App() {
                   ))}
                 </tr></thead>
                 <tbody>
-                  {ranked.map((m,i)=>{
+                  {displayRanked.map((m,i)=>{
                     const gb=i===0?"—":(top-m.s.tw);
                     return(
                       <tr key={m.name||i} style={{background:i===0?LG:i%2===0?"#FAFAFA":"#fff"}}>
@@ -496,7 +506,7 @@ function App() {
         {/* ROSTERS */}
         {tab==="rosters" && (
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:16}}>
-            {ranked.map((m,mi)=>(
+            {displayRanked.map((m,mi)=>(
               <div key={m.name||mi} style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
                 <div style={{background:N,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{color:"#fff",fontWeight:700,fontSize:15}}>{m.name||"—"}</span>
@@ -712,7 +722,7 @@ function App() {
                 <tbody>
                   {[].concat(ALL_TEAMS).sort((a,b)=>(recs[b]?recs[b].w:0)-(recs[a]?recs[a].w:0)).map((t,i)=>{
                     const r=recs[t]||{w:0,l:0};
-                    let owner="—";mgrs.forEach(m=>{if((m.teams||[]).includes(t))owner=m.name});
+                    let owner="—";displayMgrs.forEach(m=>{if((m.teams||[]).includes(t))owner=m.name});
                     const pct=(r.w+r.l)>0?(r.w/(r.w+r.l)).toFixed(3):".000";
                     return(
                       <tr key={t} style={{background:i%2===0?"#FAFAFA":"#fff"}}>
