@@ -333,6 +333,17 @@ function App(){
 
       // DRAFT
       activeTab==="draft"&&h("div",null,
+        // ADMIN PANEL - always visible on draft tab
+        h("div",{style:{display:"flex",justifyContent:"flex-end",marginBottom:12}},
+          !showAdmin?
+            h("button",{onClick:function(){setShowAdmin(true)},style:{background:"#fff",border:"1px solid #DDD",borderRadius:6,padding:"8px 14px",fontSize:11,color:GRAY,cursor:"pointer",fontFamily:"'Libre Franklin',sans-serif"}},"⚙ Admin"):
+            h("div",{style:{padding:"12px 16px",background:"#fff",borderRadius:8,border:"1px solid "+RED,display:"flex",alignItems:"center",gap:10}},
+              h("span",{style:{fontSize:11,fontWeight:700,color:RED}},"ADMIN"),
+              !adminUnlocked?
+                h("input",{type:"password",placeholder:"Password",value:adminPass,onChange:function(e){setAdminPass(e.target.value)},style:{padding:"6px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:12,width:120,fontFamily:"'Libre Franklin',sans-serif"}}):
+                h("button",{onClick:undoLastPick,style:{background:RED,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Libre Franklin',sans-serif"}},"↩ UNDO LAST PICK"),
+              h("button",{onClick:function(){setShowAdmin(false);setAdminPass("")},style:{background:"transparent",border:"none",fontSize:14,color:GRAY,cursor:"pointer"}},"✕"))
+        ),
         !draftMode?
           h("div",{style:{textAlign:"center",padding:40}},
             h("div",{style:{fontSize:18,fontWeight:700,color:NAVY,marginBottom:12}},draftLocked?"2026 Draft Complete":"Ready to draft for 2026?"),
@@ -388,17 +399,7 @@ function App(){
                 h("span",{style:{fontWeight:800,color:NAVY,fontSize:14}},"Round "+(draftRound+1)),
                 h("span",{style:{color:GRAY,margin:"0 8px"}},"·"),
                 h("span",{style:{fontWeight:600,color:GOLD,fontSize:14}},(draftManagers[currentDrafter]||"Manager "+(currentDrafter+1))+" is on the clock")),
-              h("span",{style:{fontSize:12,color:GRAY}},"Pick #"+(draftRound*4+draftPick+1)+" of 28"),
-              h("button",{onClick:function(){setShowAdmin(!showAdmin)},style:{background:"transparent",border:"1px solid "+GOLD+"60",borderRadius:6,padding:"4px 10px",fontSize:10,color:GOLD,cursor:"pointer",fontFamily:"'Libre Franklin',sans-serif",marginLeft:8}},"⚙")),
-            // Admin undo panel
-            draftOrder&&showAdmin&&h("div",{style:{marginBottom:16,padding:"12px 16px",background:"#fff",borderRadius:8,border:"1px solid #E5E5E5",display:"flex",justifyContent:"space-between",alignItems:"center"}},
-              h("div",{style:{fontSize:11,fontWeight:700,color:RED,letterSpacing:1}},"ADMIN CONTROLS"),
-              h("div",{style:{display:"flex",alignItems:"center",gap:8}},
-                !adminUnlocked?
-                  h("input",{type:"password",placeholder:"Enter password",value:adminPass,onChange:function(e){setAdminPass(e.target.value)},style:{padding:"6px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:11,width:140,fontFamily:"'Libre Franklin',sans-serif"}}):
-                  h("button",{onClick:undoLastPick,style:{background:RED,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Libre Franklin',sans-serif"}},"↩ UNDO LAST PICK"),
-                h("button",{onClick:function(){setShowAdmin(false);setAdminPass("")},style:{background:"transparent",border:"none",fontSize:14,color:GRAY,cursor:"pointer"}},"✕"))
-            ),
+              h("span",{style:{fontSize:12,color:GRAY}},"Pick #"+(draftRound*4+draftPick+1)+" of 28")),
             // Draft board
             draftOrder&&h("div",{style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",marginBottom:20,overflowX:"auto"}},
               h("table",{style:{width:"100%",borderCollapse:"collapse",minWidth:500}},
