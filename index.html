@@ -110,12 +110,13 @@ function App() {
   const prevPickCount = React.useRef(0);
   const isAdmin = pwd === "rippe26";
 
-  // Request notification permission
-  React.useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
+  const [notifPerm, setNotifPerm] = React.useState(typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unavailable");
+
+  function enableNotifs() {
+    if ("Notification" in window) {
+      Notification.requestPermission().then(function(p){ setNotifPerm(p); });
     }
-  }, []);
+  }
 
   const N="#1B2A4A",G="#C9A84C",LG="#FFF8E7",LN="#E8EDF4",GR="#2E7D32",RD="#C62828",GY="#6B7280",MG="#D1D5DB";
 
@@ -341,10 +342,10 @@ function App() {
       <div style={{maxWidth:1100,margin:"0 auto",padding:"24px 16px"}}>
 
         {/* Notification banner */}
-        {"Notification" in window && Notification.permission !== "granted" && (
+        {notifPerm !== "granted" && notifPerm !== "unavailable" && (
           <div style={{background:"#fff",borderRadius:8,padding:"12px 20px",marginBottom:16,border:"1px solid "+G+"40",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
             <div style={{fontSize:12,color:N}}>🔔 <strong>Enable notifications</strong> to get alerts when picks are made</div>
-            <button onClick={()=>Notification.requestPermission()} style={{background:G,color:N,border:"none",borderRadius:6,padding:"6px 16px",fontSize:11,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>ENABLE</button>
+            <button onClick={enableNotifs} style={{background:G,color:N,border:"none",borderRadius:6,padding:"6px 16px",fontSize:11,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>ENABLE</button>
           </div>
         )}
 
