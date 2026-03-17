@@ -208,31 +208,41 @@ function App() {
         if (ns.draftOrder) setShuffled(ns.draftOrder);
         // Browser notification on new pick
         var totalPicks = ns.draftPicks.reduce(function(a,b){return a+b.length},0);
-        if (totalPicks > prevPickCount.current && prevPickCount.current > 0 && "Notification" in window && Notification.permission === "granted") {
-          // Find what was just picked
-          var allPicked = [];
-          ns.draftPicks.forEach(function(arr,mIdx){
-            arr.forEach(function(team,rd){allPicked.push({team:team,mgr:ns.draftManagers[mIdx],rd:rd+1})});
-          });
-          var lastPick = allPicked[allPicked.length-1];
-          if (lastPick) {
-            var nextRd = ns.draftRound + 1;
-            var nextMgr = "";
-            if (ns.draftRound < 7) {
-              var b2 = ns.draftOrder || [0,1,2,3];
-              var snk2 = [0,1,2,3,4,5,6].map(function(i){return i%2===0?[].concat(b2):[].concat(b2).reverse()});
-              var nextIdx = snk2[ns.draftRound][ns.draftPick];
-              nextMgr = ns.draftManagers[nextIdx] || "";
+        if (totalPicks > prevPickCount.current && prevPickCount.current > 0) {
+          // Use draftRound and draftPick to find who JUST picked
+          // Current draftRound/draftPick point to the NEXT pick, so we go back one
+          var prevP = ns.draftPick - 1;
+          var prevR = ns.draftRound;
+          if (prevP < 0) { prevP = 3; prevR--; }
+          if (prevR >= 0 && ns.draftOrder) {
+            var b2 = ns.draftOrder;
+            var snk2 = [0,1,2,3,4,5,6].map(function(i){return i%2===0?[].concat(b2):[].concat(b2).reverse()});
+            var whoJustPicked = snk2[prevR][prevP];
+            var pickedTeam = (ns.draftPicks[whoJustPicked] || [])[prevR] || "";
+            var pickerName = ns.draftManagers[whoJustPicked] || "Someone";
+
+            if (pickedTeam) {
+              // Who's next
+              var nextMgr = "";
+              if (ns.draftRound < 7) {
+                var nextIdx = snk2[ns.draftRound][ns.draftPick];
+                nextMgr = ns.draftManagers[nextIdx] || "";
+              }
+
+              // Browser notification
+              if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                  new Notification("⚾ " + pickerName + " drafted the " + pickedTeam, {
+                    body: nextMgr ? nextMgr + " is on the clock!" : "Draft complete! 🎉",
+                    icon: TEAM_LOGOS[pickedTeam] || ""
+                  });
+                } catch(e) {}
+              }
+
+              // Show GIF celebration overlay
+              setPickCelebration({team:pickedTeam, mgr:pickerName});
+              setTimeout(function(){setPickCelebration(null)},4000);
             }
-            try {
-              new Notification("⚾ " + lastPick.mgr + " drafted the " + lastPick.team, {
-                body: nextMgr ? nextMgr + " is on the clock!" : "Draft complete! 🎉",
-                icon: TEAM_LOGOS[lastPick.team] || ""
-              });
-            } catch(e) {}
-            // Show GIF celebration overlay
-            setPickCelebration({team:lastPick.team,mgr:lastPick.mgr});
-            setTimeout(function(){setPickCelebration(null)},4000);
           }
         }
         prevPickCount.current = totalPicks;
@@ -366,6 +376,13 @@ function App() {
 
   const ttabs=[{id:"standings",l:"Standings"},{id:"rosters",l:"Rosters"},{id:"draft",l:"Draft Room"},{id:"records",l:"MLB Data"}];
   const pad = (v) => String(v).padStart(2,"0");
+  const teamLabel = (name, size) => {
+    const sz = size || 18;
+    return <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
+      <img src={TEAM_LOGOS[name]||""} alt="" style={{width:sz,height:sz,objectFit:"contain"}} onError={e=>{e.target.style.display="none"}}/>
+      {name}
+    </span>;
+  };
 
   return (
     <div style={{fontFamily:"'Libre Franklin',sans-serif",background:"#F7F6F3",minHeight:"100vh"}}>
@@ -460,7 +477,7 @@ function App() {
                         <td style={{textAlign:"center",fontWeight:600,color:N}}>{m.s.pct.toFixed(3)}</td>
                         <td style={{textAlign:"center",color:typeof gb==="number"?RD:GY,fontWeight:600}}>{gb}</td>
                         <td style={{textAlign:"center",fontSize:13,color:GY}}>{m.s.avg.toFixed(1)}</td>
-                        <td style={{textAlign:"center",fontSize:13,fontWeight:600,color:N}}>{m.s.bt}{m.s.bw>0?" ("+m.s.bw+"W)":""}</td>
+                        <td style={{textAlign:"center",fontSize:13,fontWeight:600,color:N}}>{m.s.bt?teamLabel(m.s.bt,16):""}{m.s.bw>0?" ("+m.s.bw+"W)":""}</td>
                       </tr>
                     );
                   })}
@@ -495,7 +512,7 @@ function App() {
                     {[].concat(m.teams||[]).sort((a,b)=>(recs[b]?recs[b].w:0)-(recs[a]?recs[a].w:0)).map((t,ti)=>{
                       const r=recs[t]||{w:0,l:0};
                       return(<tr key={t} style={{background:ti%2===0?"#FAFAFA":"#fff",borderLeft:t===m.s.bt?"3px solid "+G:"3px solid transparent"}}>
-                        <td style={{padding:"10px 14px",fontSize:13,color:N}}>{t}</td>
+                        <td style={{padding:"10px 14px",fontSize:13,color:N}}>{teamLabel(t,18)}</td>
                         <td style={{textAlign:"center",fontSize:13,fontWeight:700,color:GR}}>{r.w}</td>
                         <td style={{textAlign:"center",fontSize:13,color:GY}}>{r.l}</td>
                       </tr>);
@@ -637,7 +654,7 @@ function App() {
                               const tp=(dpk[mIdx]||[])[rd]||"";
                               const isCur=dr===rd&&cur===mIdx&&!tp;
                               return(
-                                <td key={col} style={{padding:"10px 16px",textAlign:"center",fontSize:13,fontWeight:tp?600:400,color:tp?N:"#CCC",background:isCur?G+"25":"inherit",border:isCur?"2px solid "+G:"none"}}>{tp||(isCur?"⏳":"—")}</td>
+                                <td key={col} style={{padding:"10px 16px",textAlign:"center",fontSize:13,fontWeight:tp?600:400,color:tp?N:"#CCC",background:isCur?G+"25":"inherit",border:isCur?"2px solid "+G:"none"}}>{tp?teamLabel(tp,16):(isCur?"⏳":"—")}</td>
                               );
                             })}
                           </tr>
@@ -657,7 +674,7 @@ function App() {
                           background:"#fff",border:"1px solid #DDD",borderRadius:6,padding:"8px 16px",
                           fontSize:13,fontWeight:500,color:N,fontFamily:"'Libre Franklin',sans-serif"
                         }} onMouseEnter={e=>{e.currentTarget.style.background=LG;e.currentTarget.style.borderColor=G}}
-                           onMouseLeave={e=>{e.currentTarget.style.background="#fff";e.currentTarget.style.borderColor="#DDD"}}>{t}</button>
+                           onMouseLeave={e=>{e.currentTarget.style.background="#fff";e.currentTarget.style.borderColor="#DDD"}}>{teamLabel(t,16)}</button>
                       ))}
                     </div>
                   </div>
@@ -699,7 +716,7 @@ function App() {
                     const pct=(r.w+r.l)>0?(r.w/(r.w+r.l)).toFixed(3):".000";
                     return(
                       <tr key={t} style={{background:i%2===0?"#FAFAFA":"#fff"}}>
-                        <td style={{padding:"10px 16px",fontWeight:600,fontSize:13,color:N}}>{t}</td>
+                        <td style={{padding:"10px 16px",fontWeight:600,fontSize:13,color:N}}>{teamLabel(t,18)}</td>
                         <td style={{textAlign:"center",padding:"10px 8px"}}>
                           {editRec?(
                             <input type="number" value={r.w} onChange={e=>setRec(t,"w",e.target.value)} style={{width:50,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:4,fontSize:13,fontWeight:700,color:GR,fontFamily:"'Libre Franklin'"}}/>
