@@ -18,6 +18,7 @@ input:focus{outline:2px solid #C9A84C}
 button{cursor:pointer}
 button:active{transform:scale(0.97)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 </style>
 </head>
 <body>
@@ -40,6 +41,74 @@ var GAME = DB.ref("game");
 var ALL_TEAMS = ["Angels","Astros","Athletics","Blue Jays","Braves","Brewers","Cardinals","Cubs","Diamondbacks","Dodgers","Giants","Guardians","Mariners","Marlins","Mets","Nationals","Orioles","Padres","Phillies","Pirates","Rangers","Rays","Red Sox","Reds","Rockies","Royals","Tigers","Twins","White Sox","Yankees"];
 var MNAMES = ["G$","Swaggy","Gainzy","Ripcity"];
 var OPENING = new Date("2026-03-25T20:05:00-04:00");
+
+// Team logo URLs (ESPN CDN)
+var TEAM_LOGOS = {
+  "Angels":"https://a.espncdn.com/i/teamlogos/mlb/500/laa.png",
+  "Astros":"https://a.espncdn.com/i/teamlogos/mlb/500/hou.png",
+  "Athletics":"https://a.espncdn.com/i/teamlogos/mlb/500/oak.png",
+  "Blue Jays":"https://a.espncdn.com/i/teamlogos/mlb/500/tor.png",
+  "Braves":"https://a.espncdn.com/i/teamlogos/mlb/500/atl.png",
+  "Brewers":"https://a.espncdn.com/i/teamlogos/mlb/500/mil.png",
+  "Cardinals":"https://a.espncdn.com/i/teamlogos/mlb/500/stl.png",
+  "Cubs":"https://a.espncdn.com/i/teamlogos/mlb/500/chc.png",
+  "Diamondbacks":"https://a.espncdn.com/i/teamlogos/mlb/500/ari.png",
+  "Dodgers":"https://a.espncdn.com/i/teamlogos/mlb/500/lad.png",
+  "Giants":"https://a.espncdn.com/i/teamlogos/mlb/500/sf.png",
+  "Guardians":"https://a.espncdn.com/i/teamlogos/mlb/500/cle.png",
+  "Mariners":"https://a.espncdn.com/i/teamlogos/mlb/500/sea.png",
+  "Marlins":"https://a.espncdn.com/i/teamlogos/mlb/500/mia.png",
+  "Mets":"https://a.espncdn.com/i/teamlogos/mlb/500/nym.png",
+  "Nationals":"https://a.espncdn.com/i/teamlogos/mlb/500/wsh.png",
+  "Orioles":"https://a.espncdn.com/i/teamlogos/mlb/500/bal.png",
+  "Padres":"https://a.espncdn.com/i/teamlogos/mlb/500/sd.png",
+  "Phillies":"https://a.espncdn.com/i/teamlogos/mlb/500/phi.png",
+  "Pirates":"https://a.espncdn.com/i/teamlogos/mlb/500/pit.png",
+  "Rangers":"https://a.espncdn.com/i/teamlogos/mlb/500/tex.png",
+  "Rays":"https://a.espncdn.com/i/teamlogos/mlb/500/tb.png",
+  "Red Sox":"https://a.espncdn.com/i/teamlogos/mlb/500/bos.png",
+  "Reds":"https://a.espncdn.com/i/teamlogos/mlb/500/cin.png",
+  "Rockies":"https://a.espncdn.com/i/teamlogos/mlb/500/col.png",
+  "Royals":"https://a.espncdn.com/i/teamlogos/mlb/500/kc.png",
+  "Tigers":"https://a.espncdn.com/i/teamlogos/mlb/500/det.png",
+  "Twins":"https://a.espncdn.com/i/teamlogos/mlb/500/min.png",
+  "White Sox":"https://a.espncdn.com/i/teamlogos/mlb/500/chw.png",
+  "Yankees":"https://a.espncdn.com/i/teamlogos/mlb/500/nyy.png"
+};
+
+// Celebration GIFs per team
+var TEAM_GIFS = {
+  "Angels":"https://media.giphy.com/media/3o7TKF1fSIs1R19B8k/giphy.gif",
+  "Astros":"https://media.giphy.com/media/l0HlvFUHALbTnhPG0/giphy.gif",
+  "Athletics":"https://media.giphy.com/media/l3q2LH45XElELRzRm/giphy.gif",
+  "Blue Jays":"https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif",
+  "Braves":"https://media.giphy.com/media/l3q2Z6S6n38zjPswo/giphy.gif",
+  "Brewers":"https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif",
+  "Cardinals":"https://media.giphy.com/media/3ohzdYJK1lnOykJFLe/giphy.gif",
+  "Cubs":"https://media.giphy.com/media/l0MYGb1LuZ3n7dRnO/giphy.gif",
+  "Diamondbacks":"https://media.giphy.com/media/3o7TKF1fSIs1R19B8k/giphy.gif",
+  "Dodgers":"https://media.giphy.com/media/l3q2LH45XElELRzRm/giphy.gif",
+  "Giants":"https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif",
+  "Guardians":"https://media.giphy.com/media/l0HlvFUHALbTnhPG0/giphy.gif",
+  "Mariners":"https://media.giphy.com/media/l3q2Z6S6n38zjPswo/giphy.gif",
+  "Marlins":"https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif",
+  "Mets":"https://media.giphy.com/media/3ohzdYJK1lnOykJFLe/giphy.gif",
+  "Nationals":"https://media.giphy.com/media/l0MYGb1LuZ3n7dRnO/giphy.gif",
+  "Orioles":"https://media.giphy.com/media/3o7TKF1fSIs1R19B8k/giphy.gif",
+  "Padres":"https://media.giphy.com/media/l3q2LH45XElELRzRm/giphy.gif",
+  "Phillies":"https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif",
+  "Pirates":"https://media.giphy.com/media/l0HlvFUHALbTnhPG0/giphy.gif",
+  "Rangers":"https://media.giphy.com/media/l3q2Z6S6n38zjPswo/giphy.gif",
+  "Rays":"https://media.giphy.com/media/l0HlBO7eyXzSZkJri/giphy.gif",
+  "Red Sox":"https://media.giphy.com/media/3ohzdYJK1lnOykJFLe/giphy.gif",
+  "Reds":"https://media.giphy.com/media/l0MYGb1LuZ3n7dRnO/giphy.gif",
+  "Rockies":"https://media.giphy.com/media/3o7TKF1fSIs1R19B8k/giphy.gif",
+  "Royals":"https://media.giphy.com/media/l3q2LH45XElELRzRm/giphy.gif",
+  "Tigers":"https://media.giphy.com/media/3ohzdIuqJoo8QdKlnW/giphy.gif",
+  "Twins":"https://media.giphy.com/media/l0HlvFUHALbTnhPG0/giphy.gif",
+  "White Sox":"https://media.giphy.com/media/l3q2Z6S6n38zjPswo/giphy.gif",
+  "Yankees":"https://media.giphy.com/media/3ohzdYJK1lnOykJFLe/giphy.gif"
+};
 
 // Data helpers - Firebase deletes empty arrays/null, these normalize on read
 function toArr(v) { if (!v) return []; if (Array.isArray(v)) return v; return Object.values(v); }
@@ -106,6 +175,7 @@ function App() {
   const [live, setLive] = React.useState(false);
   const [admin, setAdmin] = React.useState(false);
   const [pwd, setPwd] = React.useState("");
+  const [pickCelebration, setPickCelebration] = React.useState(null);
   const skip = React.useRef(false);
   const prevPickCount = React.useRef(0);
   const isAdmin = pwd === "rippe26";
@@ -155,11 +225,14 @@ function App() {
               nextMgr = ns.draftManagers[nextIdx] || "";
             }
             try {
-              new Notification("⚾ MLB Team League Pick!", {
-                body: lastPick.mgr + " drafted the " + lastPick.team + (nextMgr ? "\n" + nextMgr + " is on the clock!" : "\nDraft complete!"),
-                icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚾</text></svg>"
+              new Notification("⚾ " + lastPick.mgr + " drafted the " + lastPick.team, {
+                body: nextMgr ? nextMgr + " is on the clock!" : "Draft complete! 🎉",
+                icon: TEAM_LOGOS[lastPick.team] || ""
               });
             } catch(e) {}
+            // Show GIF celebration overlay
+            setPickCelebration({team:lastPick.team,mgr:lastPick.mgr});
+            setTimeout(function(){setPickCelebration(null)},4000);
           }
         }
         prevPickCount.current = totalPicks;
@@ -238,6 +311,9 @@ function App() {
       up.draftLocked=true;up.draftMode=false;
     }
     push(up);
+    // Show celebration for local pick
+    setPickCelebration({team:team,mgr:dmg[cur]||"Manager"});
+    setTimeout(function(){setPickCelebration(null)},4000);
   }
 
   function startDraft() {
@@ -645,6 +721,20 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* GIF CELEBRATION OVERLAY */}
+      {pickCelebration && (
+        <div style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",zIndex:9999,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",background:"rgba(27,42,74,0.85)",animation:"fadeIn 0.3s ease"}}>
+          <div style={{background:"#fff",borderRadius:16,padding:"32px 48px",textAlign:"center",maxWidth:420,boxShadow:"0 20px 60px rgba(0,0,0,0.4)"}}>
+            <img src={TEAM_LOGOS[pickCelebration.team]||""} alt={pickCelebration.team} style={{width:100,height:100,objectFit:"contain",marginBottom:16}} onError={function(e){e.target.style.display="none"}}/>
+            <div style={{fontSize:12,color:GY,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>DRAFTED BY {pickCelebration.mgr.toUpperCase()}</div>
+            <div style={{fontSize:28,fontWeight:900,color:N,fontFamily:"'Playfair Display',serif",marginBottom:16}}>The {pickCelebration.team}!</div>
+            <img src={TEAM_GIFS[pickCelebration.team]||""} alt="celebration" style={{width:"100%",maxWidth:300,borderRadius:10,marginBottom:12}} onError={function(e){e.target.style.display="none"}}/>
+            <div style={{fontSize:11,color:GY}}>Auto-closing in a moment...</div>
+          </div>
+        </div>
+      )}
+
       <div style={{textAlign:"center",padding:"24px 0 32px",fontSize:11,color:GY}}>MLB Team League 2026 · Est. 2015 · $225 Prize Pool · Defending Champ: Ripcity</div>
     </div>
   );
