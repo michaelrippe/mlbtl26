@@ -213,6 +213,23 @@ function App(){
   var updateDM=(i,val)=>{if(namesLocked)return;var nm=[...draftManagers];nm[i]=val;push({draftManagers:nm});};
   var updateRec=(team,field,val)=>{push({records:{...records,[team]:{...records[team],[field]:parseInt(val)||0}}});};
 
+  var[showAdmin,setShowAdmin]=useState(false);
+  var[adminPass,setAdminPass]=useState("");
+  var adminUnlocked=adminPass==="rippe26";
+
+  var undoLastPick=function(){
+    if(!adminUnlocked)return;
+    // Find previous pick position
+    var prevPick=draftPick-1;
+    var prevRound=draftRound;
+    if(prevPick<0){prevPick=3;prevRound--;}
+    if(prevRound<0)return; // nothing to undo
+    var prevDrafter=snake[prevRound][prevPick];
+    var np=draftPicks.map(function(a){return[...a]});
+    if(!np[prevDrafter]||np[prevDrafter].length===0)return;
+    np[prevDrafter].pop();
+    push({draftPicks:np,draftPick:prevPick,draftRound:prevRound});
+  };
   var tabs=[{id:"standings",label:"Standings"},{id:"rosters",label:"Rosters"},{id:"draft",label:"Draft Board"},{id:"records",label:"MLB Data"}];
   var h=React.createElement;
 
@@ -372,6 +389,16 @@ function App(){
                 h("span",{style:{color:GRAY,margin:"0 8px"}},"·"),
                 h("span",{style:{fontWeight:600,color:GOLD,fontSize:14}},(draftManagers[currentDrafter]||"Manager "+(currentDrafter+1))+" is on the clock")),
               h("span",{style:{fontSize:12,color:GRAY}},"Pick #"+(draftRound*4+draftPick+1)+" of 28")),
+            // Admin undo panel
+            h("div",{style:{marginBottom:16,display:"flex",justifyContent:"flex-end",alignItems:"center",gap:8}},
+              !showAdmin?
+                h("button",{onClick:function(){setShowAdmin(true)},style:{background:"transparent",border:"1px solid #DDD",borderRadius:6,padding:"6px 12px",fontSize:10,color:GRAY,cursor:"pointer",fontFamily:"'Libre Franklin',sans-serif"}},"⚙ Admin"):
+                h("div",{style:{display:"flex",alignItems:"center",gap:8}},
+                  !adminUnlocked?
+                    h("input",{type:"password",placeholder:"Admin password",value:adminPass,onChange:function(e){setAdminPass(e.target.value)},style:{padding:"6px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:11,width:140,fontFamily:"'Libre Franklin',sans-serif"}}):
+                    h("button",{onClick:undoLastPick,style:{background:RED,color:"#fff",border:"none",borderRadius:6,padding:"6px 14px",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'Libre Franklin',sans-serif"}},"↩ UNDO LAST PICK"),
+                  h("button",{onClick:function(){setShowAdmin(false);setAdminPass("")},style:{background:"transparent",border:"none",fontSize:12,color:GRAY,cursor:"pointer"}},"✕"))
+            ),
             // Draft board
             draftOrder&&h("div",{style:{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",marginBottom:20,overflowX:"auto"}},
               h("table",{style:{width:"100%",borderCollapse:"collapse",minWidth:500}},
