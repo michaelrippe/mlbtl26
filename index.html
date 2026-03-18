@@ -255,7 +255,7 @@ function App(){
 
   return (
     <div style={{fontFamily:"'Libre Franklin',sans-serif",background:"#F7F6F3",minHeight:"100vh"}}>
-      <div className="hdr" style={{background:N,padding:"28px 32px 20px",position:"relative",overflow:"hidden"}}>
+      <div className="hdr" style={{background:N,padding:"16px 32px 12px",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:0,right:0,width:300,height:"100%",background:"linear-gradient(135deg,transparent 40%,"+G+"15)",pointerEvents:"none"}}/>
         <div className="hdr-row" style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",position:"relative"}}>
           <div>
@@ -267,17 +267,17 @@ function App(){
             <div style={{fontSize:10,color:"#ffffff80",marginTop:2}}>Est. 2015{" "}<span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:live?GR:RD,marginLeft:6,animation:"pulse 2s infinite"}}/><span style={{color:live?"#4CAF50":RD,fontSize:9,fontWeight:700,marginLeft:4}}>{live?"LIVE":""}</span></div>
           </div>
         </div>
-        <div style={{marginTop:16,background:G+"15",borderRadius:8,padding:"12px 20px",display:"flex",justifyContent:"center",alignItems:"center",gap:24,border:"1px solid "+G+"30",flexWrap:"wrap"}}>
-          <div style={{fontSize:11,color:G,fontWeight:700,letterSpacing:2}}>{cd.go?"SEASON IS LIVE":"FIRST PITCH - NYY @ SF"}</div>
-          {!cd.go?<div style={{display:"flex",gap:16}}>{[{v:cd.d,l:"DAYS"},{v:cd.h,l:"HRS"},{v:cd.m,l:"MIN"},{v:cd.s,l:"SEC"}].map(function(x){return <div key={x.l} style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",lineHeight:1}}>{pad(x.v)}</div><div style={{fontSize:8,color:G,fontWeight:700,letterSpacing:1.5,marginTop:2}}>{x.l}</div></div>})}</div>:<div style={{fontSize:14,fontWeight:800,color:"#fff"}}>March 25, 2026 - 8:05 PM ET - Netflix</div>}
-          <div style={{fontSize:10,color:"#ffffff60"}}>MAR 25 8:05 PM ET</div>
+        <div style={{marginTop:10,background:G+"15",borderRadius:6,padding:"8px 16px",display:"flex",justifyContent:"center",alignItems:"center",gap:20,border:"1px solid "+G+"30",flexWrap:"wrap"}}>
+          <div style={{fontSize:10,color:G,fontWeight:700,letterSpacing:2}}>{cd.go?"SEASON IS LIVE":"FIRST PITCH - NYY @ SF"}</div>
+          {!cd.go?<div style={{display:"flex",gap:12}}>{[{v:cd.d,l:"DAYS"},{v:cd.h,l:"HRS"},{v:cd.m,l:"MIN"},{v:cd.s,l:"SEC"}].map(function(x){return <div key={x.l} style={{textAlign:"center"}}><div style={{fontSize:18,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",lineHeight:1}}>{pad(x.v)}</div><div style={{fontSize:7,color:G,fontWeight:700,letterSpacing:1.5,marginTop:1}}>{x.l}</div></div>})}</div>:<div style={{fontSize:13,fontWeight:800,color:"#fff"}}>March 25, 2026 - 8:05 PM ET - Netflix</div>}
+          <div style={{fontSize:9,color:"#ffffff60"}}>MAR 25 8:05 PM ET</div>
         </div>
-        <div className="tabs-row" style={{display:"flex",gap:0,marginTop:20,borderBottom:"2px solid "+G+"33"}}>
-          {tabs.map(function(t){return <button key={t.id} onClick={function(){setTab(t.id)}} style={{background:tab===t.id?G:"transparent",color:tab===t.id?N:"#ffffff99",border:"none",padding:"10px 24px",fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",borderRadius:"6px 6px 0 0",fontFamily:"'Libre Franklin',sans-serif"}}>{t.l}</button>})}
+        <div className="tabs-row" style={{display:"flex",gap:0,marginTop:10,borderBottom:"2px solid "+G+"33"}}>
+          {tabs.map(function(t){return <button key={t.id} onClick={function(){setTab(t.id)}} style={{background:tab===t.id?G:"transparent",color:tab===t.id?N:"#ffffff99",border:"none",padding:"8px 20px",fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",borderRadius:"6px 6px 0 0",fontFamily:"'Libre Franklin',sans-serif"}}>{t.l}</button>})}
         </div>
       </div>
 
-      <div style={{maxWidth:1100,margin:"0 auto",padding:"24px 16px"}}>
+      <div style={{maxWidth:1100,margin:"0 auto",padding:"12px 16px"}}>
         {notifP!=="granted"&&notifP!=="na"&&<div style={{background:"#fff",borderRadius:8,padding:"12px 20px",marginBottom:16,border:"1px solid "+G+"40",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}><div style={{fontSize:12,color:N}}>{"🔔"} <strong>Enable notifications</strong> to get alerts when picks are made</div><button onClick={enableNotifs} style={{background:G,color:N,border:"none",borderRadius:6,padding:"6px 16px",fontSize:11,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>ENABLE</button></div>}
 
         {tab==="standings"&&<div>
@@ -389,7 +389,7 @@ function App(){
         </div>}
 
         {tab==="draft"&&<div>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
             {!adm?<button onClick={function(){setAdm(true)}} style={{background:"#fff",border:"1px solid #CCC",borderRadius:6,padding:"8px 14px",fontSize:11,color:GY,fontFamily:"'Libre Franklin',sans-serif"}}>Admin</button>:
             <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",background:"#fff",borderRadius:8,border:"1px solid "+RD}}>
               <span style={{fontSize:11,fontWeight:700,color:RD}}>ADMIN</span>
@@ -399,7 +399,7 @@ function App(){
             </div>}
           </div>
 
-          <div className="draft-layout" style={{display:"flex",gap:16,alignItems:"flex-start"}}>
+          <div className="draft-layout" style={{display:"flex",gap:12,alignItems:"stretch"}}>
             {/* LEFT - DRAFT CONTENT */}
             <div style={{flex:1,minWidth:0}}>
           {!dm?<div style={{textAlign:"center",padding:40}}>
@@ -409,8 +409,8 @@ function App(){
             {dlk?<div style={{color:RD,fontSize:13,fontWeight:600}}>All picks are final and locked in</div>:<button onClick={startDraft} style={{background:G,color:N,border:"none",padding:"14px 36px",fontSize:14,fontWeight:800,borderRadius:8,fontFamily:"'Libre Franklin',sans-serif"}}>START DRAFT</button>}
           </div>:
           <div>
-            <div className="draft-mgr-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
-              {dmg.map(function(name,i){return <div key={i}><div style={{fontSize:10,fontWeight:700,color:GY,letterSpacing:1,marginBottom:4}}>MANAGER {i+1}</div><input value={name||""} onChange={function(e){setDMgr(i,e.target.value)}} placeholder={"Manager "+(i+1)} disabled={nlk} style={{width:"100%",padding:"10px 12px",border:cur===i&&dor?"2px solid "+G:"1px solid #DDD",borderRadius:6,fontSize:14,fontWeight:600,color:N,boxSizing:"border-box",background:nlk?"#F3F3F3":(cur===i&&dor?LG:"#fff"),fontFamily:"'Libre Franklin',sans-serif",opacity:nlk?0.8:1}}/></div>})}
+            <div className="draft-mgr-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}>
+              {dmg.map(function(name,i){return <div key={i}><div style={{fontSize:9,fontWeight:700,color:GY,letterSpacing:1,marginBottom:3}}>MGR {i+1}</div><input value={name||""} onChange={function(e){setDMgr(i,e.target.value)}} placeholder={"Manager "+(i+1)} disabled={nlk} style={{width:"100%",padding:"8px 10px",border:cur===i&&dor?"2px solid "+G:"1px solid #DDD",borderRadius:6,fontSize:13,fontWeight:600,color:N,boxSizing:"border-box",background:nlk?"#F3F3F3":(cur===i&&dor?LG:"#fff"),fontFamily:"'Libre Franklin',sans-serif",opacity:nlk?0.8:1}}/></div>})}
             </div>
             {!dor&&<div style={{textAlign:"center",padding:32,background:"#fff",borderRadius:12,border:"1px solid #E5E5E5",marginBottom:20}}>
               {shuffled?<div style={{marginBottom:24}}><div style={{fontSize:11,fontWeight:700,color:GY,letterSpacing:2,marginBottom:16}}>{anim?"RANDOMIZING...":"DRAFT ORDER SET"}</div><div style={{display:"flex",justifyContent:"center",gap:16,flexWrap:"wrap"}}>{shuffled.map(function(mIdx,pos){return <div key={pos} style={{background:anim?N+"10":N,borderRadius:10,padding:"16px 20px",minWidth:100,border:"2px solid "+(anim?G+"50":G)}}><div style={{fontSize:28,fontWeight:900,color:anim?N:G,fontFamily:"'Playfair Display',serif"}}>#{pos+1}</div><div style={{fontSize:13,fontWeight:700,marginTop:4,color:anim?GY:"#fff"}}>{dmg[mIdx]||"Mgr "+(mIdx+1)}</div></div>})}</div></div>:
@@ -418,34 +418,34 @@ function App(){
               <button onClick={doRandom} disabled={anim||!named} style={{background:named&&!anim?G:MG,color:named?N:"#999",border:"none",padding:"14px 40px",fontSize:14,fontWeight:800,borderRadius:8,cursor:named&&!anim?"pointer":"not-allowed",fontFamily:"'Libre Franklin',sans-serif"}}>{anim?"RANDOMIZING...":shuffled?"ORDER LOCKED":"RANDOMIZE DRAFT ORDER"}</button>
               {!named&&!shuffled&&<div style={{fontSize:11,color:RD,marginTop:8}}>Enter all 4 manager names first</div>}
             </div>}
-            {dor&&<div style={{background:N,borderRadius:10,padding:"14px 24px",marginBottom:16,display:"flex",justifyContent:"center",alignItems:"center",gap:24,flexWrap:"wrap"}}>
+            {dor&&<div style={{background:N,borderRadius:8,padding:"10px 20px",marginBottom:10,display:"flex",justifyContent:"center",alignItems:"center",gap:20,flexWrap:"wrap"}}>
               <span style={{fontSize:11,fontWeight:700,color:G,letterSpacing:2}}>DRAFT ORDER</span>
               {dor.map(function(mIdx,pos){return <div key={pos} style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:16,fontWeight:900,color:G,fontFamily:"'Playfair Display',serif"}}>{pos+1}.</span><span style={{fontSize:13,fontWeight:600,color:"#fff"}}>{dmg[mIdx]}</span></div>})}
               <span style={{fontSize:10,color:"#ffffff50"}}>LOCKED</span>
             </div>}
-            {dor&&dr<7&&<div style={{background:LG,borderRadius:8,padding:"12px 20px",marginBottom:16,border:"1px solid "+G+"60",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
-              <div><span style={{fontWeight:800,color:N,fontSize:14}}>Round {dr+1}</span><span style={{color:GY,margin:"0 8px"}}>-</span><span style={{fontWeight:600,color:G,fontSize:14}}>{dmg[cur]||"Manager "+(cur+1)} is on the clock</span></div>
-              <span style={{fontSize:12,color:GY}}>Pick #{dr*4+dp+1} of 28</span>
+            {dor&&dr<7&&<div style={{background:LG,borderRadius:6,padding:"8px 16px",marginBottom:10,border:"1px solid "+G+"60",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
+              <div><span style={{fontWeight:800,color:N,fontSize:13}}>Round {dr+1}</span><span style={{color:GY,margin:"0 6px"}}>-</span><span style={{fontWeight:600,color:G,fontSize:13}}>{dmg[cur]||"Manager "+(cur+1)} is on the clock</span></div>
+              <span style={{fontSize:11,color:GY}}>Pick #{dr*4+dp+1} of 28</span>
             </div>}
-            {dor&&<div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",marginBottom:20,overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",minWidth:500}}>
-                <thead><tr style={{background:N}}><th style={{padding:"10px",color:"#fff",fontSize:10,fontWeight:700,width:40}}>RD</th>{dor.map(function(mIdx,pos){return <th key={pos} style={{padding:"10px 16px",color:"#fff",fontSize:12,fontWeight:700}}>{dmg[mIdx]||"Manager "+(mIdx+1)}<div style={{fontSize:9,color:G,marginTop:2}}>Pick #{pos+1}</div></th>})}</tr></thead>
-                <tbody>{[0,1,2,3,4,5,6].map(function(rd){return <tr key={rd} style={{background:rd%2===0?"#FAFAFA":"#fff"}}><td style={{textAlign:"center",fontWeight:800,color:N,fontSize:14,padding:10,background:LN}}>{rd+1}</td>{dor.map(function(mIdx,col){var tp=(dpk[mIdx]||[])[rd]||"";var ic=dr===rd&&cur===mIdx&&!tp;return <td key={col} style={{padding:"10px 16px",textAlign:"center",fontSize:13,fontWeight:tp?600:400,color:tp?N:"#CCC",background:ic?G+"25":"inherit",border:ic?"2px solid "+G:"none"}}>{tp?teamL(tp,16):(ic?"...":"-")}</td>})}</tr>})}</tbody>
+            {dor&&<div style={{background:"#fff",borderRadius:10,overflow:"hidden",border:"1px solid #E5E5E5",marginBottom:12,overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",minWidth:480}}>
+                <thead><tr style={{background:N}}><th style={{padding:"8px",color:"#fff",fontSize:9,fontWeight:700,width:36}}>RD</th>{dor.map(function(mIdx,pos){return <th key={pos} style={{padding:"8px 12px",color:"#fff",fontSize:11,fontWeight:700}}>{dmg[mIdx]||"Mgr "+(mIdx+1)}<div style={{fontSize:8,color:G,marginTop:1}}>#{pos+1}</div></th>})}</tr></thead>
+                <tbody>{[0,1,2,3,4,5,6].map(function(rd){return <tr key={rd} style={{background:rd%2===0?"#FAFAFA":"#fff"}}><td style={{textAlign:"center",fontWeight:800,color:N,fontSize:12,padding:8,background:LN}}>{rd+1}</td>{dor.map(function(mIdx,col){var tp=(dpk[mIdx]||[])[rd]||"";var ic=dr===rd&&cur===mIdx&&!tp;return <td key={col} style={{padding:"8px 10px",textAlign:"center",fontSize:12,fontWeight:tp?600:400,color:tp?N:"#CCC",background:ic?G+"25":"inherit",border:ic?"2px solid "+G:"none"}}>{tp?teamL(tp,14):(ic?"...":"-")}</td>})}</tr>})}</tbody>
               </table>
             </div>}
-            {dor&&dr<7&&<div><div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5,marginBottom:10}}>AVAILABLE TEAMS ({avail.length} remaining)</div><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{avail.map(function(t){return <button key={t} onClick={function(){doPick(t)}} style={{background:"#fff",border:"1px solid #DDD",borderRadius:6,padding:"8px 16px",fontSize:13,fontWeight:500,color:N,fontFamily:"'Libre Franklin',sans-serif"}} onMouseEnter={function(e){e.currentTarget.style.background=LG;e.currentTarget.style.borderColor=G}} onMouseLeave={function(e){e.currentTarget.style.background="#fff";e.currentTarget.style.borderColor="#DDD"}}>{teamL(t,16)}</button>})}</div></div>}
+            {dor&&dr<7&&<div><div style={{fontSize:10,fontWeight:700,color:N,letterSpacing:1.5,marginBottom:8}}>AVAILABLE ({avail.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{avail.map(function(t){return <button key={t} onClick={function(){doPick(t)}} style={{background:"#fff",border:"1px solid #DDD",borderRadius:6,padding:"6px 12px",fontSize:12,fontWeight:500,color:N,fontFamily:"'Libre Franklin',sans-serif"}} onMouseEnter={function(e){e.currentTarget.style.background=LG;e.currentTarget.style.borderColor=G}} onMouseLeave={function(e){e.currentTarget.style.background="#fff";e.currentTarget.style.borderColor="#DDD"}}>{teamL(t,14)}</button>})}</div></div>}
             {dr>=7&&<div style={{textAlign:"center",padding:20,background:LG,borderRadius:10,border:"1px solid "+G}}><div style={{fontSize:24,marginBottom:4}}>{"🎉"}</div><div style={{fontSize:16,fontWeight:800,color:N}}>Draft Complete - Rosters Locked!</div><div style={{fontSize:13,color:GY,marginTop:4}}>All picks are final. Check the Standings and Rosters tabs.</div><div style={{marginTop:8,fontSize:12,color:GY}}>Undrafted: {ALL_TEAMS.filter(function(t){return!taken.includes(t)}).join(", ")||"None"}</div></div>}
           </div>}
             </div>
 
             {/* RIGHT - TRASH TALK SIDEBAR */}
-            <div className="draft-sidebar" style={{width:280,minWidth:280,position:"sticky",top:16}}>
-              <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
-                <div style={{background:N,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{color:"#fff",fontSize:12,fontWeight:700}}>TRASH TALK</span>
+            <div className="draft-sidebar" style={{width:260,minWidth:260,display:"flex",flexDirection:"column"}}>
+              <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",display:"flex",flexDirection:"column",flex:1}}>
+                <div style={{background:N,padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{color:"#fff",fontSize:11,fontWeight:700}}>TRASH TALK</span>
                   <span style={{color:G,fontSize:9}}>{chatMsgs.length} msgs</span>
                 </div>
-                <div ref={chatRef} style={{height:400,overflowY:"auto",padding:"10px 12px",background:"#FAFAFA"}}>
+                <div ref={chatRef} style={{flex:1,overflowY:"auto",padding:"8px 10px",background:"#FAFAFA",minHeight:200}}>
                   {chatMsgs.length===0&&<div style={{textAlign:"center",padding:30,color:GY,fontSize:11}}>No messages yet. Start the trash talk!</div>}
                   {chatMsgs.map(function(m,i){
                     var t=new Date(m.ts);
@@ -675,7 +675,7 @@ function App(){
         </div>
       </div>}
 
-      <div style={{textAlign:"center",padding:"24px 0 32px",fontSize:11,color:GY}}>MLB Team League 2026 - Est. 2015 - $225 Prize Pool - Defending Champ: Ripcity</div>
+      <div style={{textAlign:"center",padding:"12px 0 16px",fontSize:10,color:GY}}>MLB Team League 2026 - Est. 2015 - $225 Prize Pool - Defending Champ: Ripcity</div>
     </div>
   );
 }
