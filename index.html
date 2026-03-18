@@ -69,6 +69,7 @@ function App(){
   const[notifP,setNotifP]=React.useState(typeof window!=="undefined"&&"Notification"in window?Notification.permission:"na");
   const skip=React.useRef(false);
   const prevPC=React.useRef(0);
+  const weekSaved=React.useRef(false);
   const isAdm=pwd==="rippe26";
   const N="#1B2A4A",G="#C9A84C",LG="#FFF8E7",LN="#E8EDF4",GR="#2E7D32",RD="#C62828",GY="#6B7280",MG="#D1D5DB";
 
@@ -110,6 +111,17 @@ function App(){
     tick();var id=setInterval(tick,1000);return function(){clearInterval(id)}
   },[]);
 
+  // Auto weekly snapshot - runs once per Monday
+  React.useEffect(function(){
+    if(!state||!state.draftLocked||weekSaved.current)return;
+    var now=new Date();if(now.getDay()!==1)return;
+    var ls=state.prevRankingsDate||"";var td=now.toISOString().slice(0,10);
+    if(ls===td)return;
+    var mgList=cMgrs(state.managers);var recs=cRecs(state.records);
+    var ranked2=[].concat(mgList).map(function(m){var tw=0;(m.teams||[]).forEach(function(t){tw+=(recs[t]||{w:0}).w});return{name:m.name,tw:tw}}).sort(function(a,b){return b.tw-a.tw});
+    if(ranked2[0]&&ranked2[0].tw>0){weekSaved.current=true;var sn={};ranked2.forEach(function(m,i){sn[m.name]=i+1});GAME.update({prevRankings:sn,prevRankingsDate:td})}
+  },[state&&state.draftLocked]);
+
   function push(up){
     var safe={};Object.keys(up).forEach(function(k){safe[k]=up[k]});
     if(safe.draftPicks)safe.draftPicks=safe.draftPicks.map(function(a){return a.length===0?["_"]:a});
@@ -138,14 +150,6 @@ function App(){
   var cur=dr<7?snk[dr][dp]:-1;
   var named=dmg.every(function(n){return(n||"").trim()!==""});
   var pad=function(v){return String(v).padStart(2,"0")};
-
-  // Auto weekly snapshot - runs once per Monday
-  var weekSaved=React.useRef(false);
-  React.useEffect(function(){
-    if(!state||!dlk||weekSaved.current)return;
-    var now=new Date();var isMon=now.getDay()===1;var ls=state.prevRankingsDate||"";var td=now.toISOString().slice(0,10);
-    if(isMon&&ls!==td&&dR[0]&&dR[0].s.tw>0){weekSaved.current=true;var sn={};dR.forEach(function(m,i){sn[m.name]=i+1});GAME.update({prevRankings:sn,prevRankingsDate:td})}
-  },[dlk]);
 
   function getMv(name,rank){if(!prk)return null;var p=prk[name];if(p===undefined||p===null)return null;if(rank<p)return p-rank;if(rank>p)return-(rank-p);return 0}
 
