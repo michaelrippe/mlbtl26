@@ -437,7 +437,25 @@ function App(){
               </div>
               {dor&&<table style={{width:"100%",borderCollapse:"collapse"}}>
                 <thead><tr style={{background:LN}}><th style={{padding:"8px",fontSize:9,fontWeight:700,color:N,width:36}}>RD</th>{dor.map(function(mIdx,pos){return <th key={pos} style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:N}}>{mg[mIdx]?mg[mIdx].name:dmg[mIdx]||"Mgr "+(mIdx+1)}<div style={{fontSize:8,color:G,marginTop:1}}>Pick #{pos+1}</div></th>})}</tr></thead>
-                <tbody>{[0,1,2,3,4,5,6].map(function(rd){return <tr key={rd} style={{background:rd%2===0?"#FAFAFA":"#fff"}}><td style={{textAlign:"center",fontWeight:800,color:N,fontSize:12,padding:8,background:LN}}>{rd+1}</td>{dor.map(function(mIdx,col){var tp=(dpk[mIdx]||[])[rd]||"";return <td key={col} style={{padding:"8px 10px",textAlign:"center",fontSize:12,fontWeight:600,color:N}}>{tp?teamL(tp,14):"-"}</td>})}</tr>})}</tbody>
+                <tbody>{(function(){
+                  // Reconstruct full draft board from managers.teams using snake order
+                  var board={};
+                  dor.forEach(function(mIdx){
+                    var teams=(mg[mIdx]&&mg[mIdx].teams)||dpk[mIdx]||[];
+                    var picks=dpk[mIdx]||[];
+                    // Use dpk if available and same length, otherwise use manager teams
+                    board[mIdx]=picks.length>=teams.length?picks:teams;
+                  });
+                  return [0,1,2,3,4,5,6].map(function(rd){
+                    return <tr key={rd} style={{background:rd%2===0?"#FAFAFA":"#fff"}}>
+                      <td style={{textAlign:"center",fontWeight:800,color:N,fontSize:12,padding:8,background:LN}}>{rd+1}</td>
+                      {dor.map(function(mIdx,col){
+                        var tp=(board[mIdx]||[])[rd]||"";
+                        return <td key={col} style={{padding:"8px 10px",textAlign:"center",fontSize:12,fontWeight:600,color:tp?N:"#CCC"}}>{tp?teamL(tp,14):"-"}</td>
+                      })}
+                    </tr>
+                  });
+                })()}</tbody>
               </table>}
               <div style={{padding:"10px 20px",background:LG,display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:6}}>
                 <span style={{fontSize:11,color:N,fontWeight:600}}>Undrafted: {ALL_TEAMS.filter(function(t){return!taken.includes(t)}).join(", ")||"None"}</span>
