@@ -476,18 +476,41 @@ function App(){
                 <button onClick={function(){setEditRec(!editRec)}} style={{background:editRec?GR:N,color:"#fff",border:"none",padding:"8px 20px",fontSize:12,fontWeight:700,borderRadius:6,fontFamily:"'Libre Franklin',sans-serif"}}>{editRec?"Done":"Edit Records"}</button>:null}
             </div>
           </div>
-          <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",overflowX:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",minWidth:450}}>
-              <thead><tr style={{background:N}}>{["TEAM","W","L","OWNER"].map(function(h){return <th key={h} style={{padding:"10px 16px",color:h==="L"?"#ffffff60":"#fff",fontSize:h==="W"?12:10,fontWeight:700,letterSpacing:1.5,textAlign:h==="TEAM"||h==="OWNER"?"left":"center"}}>{h}</th>})}</tr></thead>
-              <tbody>{[].concat(ALL_TEAMS).sort(function(a,b){return(rc[b]?rc[b].w:0)-(rc[a]?rc[a].w:0)}).map(function(t,i){
-                var r=rc[t]||{w:0,l:0};var owner="-";dM.forEach(function(m){if((m.teams||[]).includes(t))owner=m.name});
-                return <tr key={t} style={{background:i%2===0?"#FAFAFA":"#fff"}}>
-                  <td style={{padding:"10px 16px",fontWeight:600,fontSize:13,color:N}}>{teamL(t,18)}</td>
-                  <td style={{textAlign:"center",padding:"10px 8px"}}>{editRec?<input type="number" value={r.w} onChange={function(e){setRc(t,"w",e.target.value)}} style={{width:55,textAlign:"center",border:"2px solid "+GR,borderRadius:4,padding:4,fontSize:14,fontWeight:800,color:GR,fontFamily:"'Libre Franklin'"}}/>:<span style={{fontWeight:800,color:GR,fontSize:15}}>{r.w}</span>}</td>
-                  <td style={{textAlign:"center",padding:"10px 8px"}}>{editRec?<input type="number" value={r.l} onChange={function(e){setRc(t,"l",e.target.value)}} style={{width:50,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:4,fontSize:11,color:"#C0C0C0",fontFamily:"'Libre Franklin'"}}/>:<span style={{color:"#C0C0C0",fontSize:11}}>{r.l}</span>}</td>
-                  <td style={{padding:"10px 16px",fontSize:12,color:owner==="-"?"#CCC":G,fontWeight:600}}>{owner}</td>
-                </tr>})}</tbody>
-            </table>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))",gap:16}}>
+            {[
+              {name:"AL East",teams:["Yankees","Red Sox","Blue Jays","Orioles","Rays"]},
+              {name:"AL Central",teams:["Guardians","Tigers","Twins","Royals","White Sox"]},
+              {name:"AL West",teams:["Astros","Mariners","Rangers","Angels","Athletics"]},
+              {name:"NL East",teams:["Mets","Braves","Phillies","Nationals","Marlins"]},
+              {name:"NL Central",teams:["Cubs","Brewers","Cardinals","Pirates","Reds"]},
+              {name:"NL West",teams:["Dodgers","Padres","Diamondbacks","Giants","Rockies"]}
+            ].map(function(div){
+              return <div key={div.name} style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+                <div style={{background:N,padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{color:"#fff",fontSize:12,fontWeight:700}}>{div.name}</span>
+                  <span style={{color:G,fontSize:10}}>{div.name.startsWith("AL")?"American":"National"}</span>
+                </div>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead><tr style={{background:LN}}>
+                    <th style={{padding:"8px 12px",fontSize:9,fontWeight:700,color:N,textAlign:"left",letterSpacing:1}}>TEAM</th>
+                    <th style={{padding:"8px 8px",fontSize:10,fontWeight:800,color:GR,textAlign:"center"}}>W</th>
+                    <th style={{padding:"8px 8px",fontSize:9,fontWeight:600,color:"#C0C0C0",textAlign:"center"}}>L</th>
+                    <th style={{padding:"8px 12px",fontSize:9,fontWeight:700,color:N,textAlign:"left"}}>OWNER</th>
+                  </tr></thead>
+                  <tbody>
+                    {[].concat(div.teams).sort(function(a,b){return(rc[b]?rc[b].w:0)-(rc[a]?rc[a].w:0)}).map(function(t,i){
+                      var r=rc[t]||{w:0,l:0};var owner="-";dM.forEach(function(m){if((m.teams||[]).includes(t))owner=m.name});
+                      return <tr key={t} style={{background:i%2===0?"#FAFAFA":"#fff"}}>
+                        <td style={{padding:"8px 12px",fontWeight:600,fontSize:12,color:N}}>{teamL(t,16)}</td>
+                        <td style={{textAlign:"center",padding:"8px 6px"}}>{editRec?<input type="number" value={r.w} onChange={function(e){setRc(t,"w",e.target.value)}} style={{width:48,textAlign:"center",border:"2px solid "+GR,borderRadius:4,padding:3,fontSize:13,fontWeight:800,color:GR,fontFamily:"'Libre Franklin'"}}/>:<span style={{fontWeight:800,color:GR,fontSize:14}}>{r.w}</span>}</td>
+                        <td style={{textAlign:"center",padding:"8px 6px"}}>{editRec?<input type="number" value={r.l} onChange={function(e){setRc(t,"l",e.target.value)}} style={{width:44,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:3,fontSize:10,color:"#C0C0C0",fontFamily:"'Libre Franklin'"}}/>:<span style={{color:"#C0C0C0",fontSize:10}}>{r.l}</span>}</td>
+                        <td style={{padding:"8px 12px",fontSize:11,color:owner==="-"?"#CCC":G,fontWeight:600}}>{owner}</td>
+                      </tr>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            })}
           </div>
         </div>}
 
