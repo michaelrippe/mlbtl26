@@ -70,6 +70,14 @@ function App(){
   const[pwd,setPwd]=React.useState("");
   const[celeb,setCeleb]=React.useState(null);
   const[notifP,setNotifP]=React.useState(typeof window!=="undefined"&&"Notification"in window?Notification.permission:"na");
+  const[chatMsgs,setChatMsgs]=React.useState([]);
+  const[chatInput,setChatInput]=React.useState("");
+  const[chatName,setChatName]=React.useState("");
+  const[signName,setSignName]=React.useState("");
+  const[signEmail,setSignEmail]=React.useState("");
+  const[signLeagues,setSignLeagues]=React.useState([]);
+  const[signSent,setSignSent]=React.useState(false);
+  const chatRef=React.useRef(null);
   const skip=React.useRef(false);
   const prevPC=React.useRef(0);
   const weekSaved=React.useRef(false);
@@ -126,6 +134,17 @@ function App(){
   React.useEffect(function(){
     function tick(){var diff=OPENING-new Date();if(diff<=0){setCd({d:0,h:0,m:0,s:0,go:true});return}setCd({d:Math.floor(diff/864e5),h:Math.floor((diff%864e5)/36e5),m:Math.floor((diff%36e5)/6e4),s:Math.floor((diff%6e4)/1e3),go:false})}
     tick();var id=setInterval(tick,1000);return function(){clearInterval(id)}
+  },[]);
+
+  // Chat listener
+  React.useEffect(function(){
+    var chatDB=DB.ref("chat");
+    chatDB.orderByChild("ts").limitToLast(50).on("value",function(snap){
+      var d=snap.val();
+      if(d){var msgs=Object.keys(d).map(function(k){return d[k]}).sort(function(a,b){return a.ts-b.ts});setChatMsgs(msgs)}
+      else{setChatMsgs([])}
+    });
+    return function(){chatDB.off()}
   },[]);
 
   // Auto weekly snapshot - runs once per Monday
@@ -208,7 +227,28 @@ function App(){
   function setDMgr(i,v){if(nlk)return;var nm=[].concat(dmg);nm[i]=v;push({draftManagers:nm})}
   function setRc(t,f,v){var nr={};ALL_TEAMS.forEach(function(x){nr[x]={w:rc[x].w,l:rc[x].l}});nr[t][f]=parseInt(v)||0;push({records:nr})}
 
-  var tabs=[{id:"standings",l:"Standings"},{id:"rosters",l:"Rosters"},{id:"draft",l:"Draft Room"},{id:"records",l:"MLB Data"},{id:"rules",l:"Rules"}];
+  function sendChat(){
+    if(!chatInput.trim()||!chatName.trim())return;
+    DB.ref("chat").push({name:chatName.trim(),msg:chatInput.trim(),ts:Date.now()});
+    setChatInput("");
+    if(chatRef.current)setTimeout(function(){chatRef.current.scrollTop=chatRef.current.scrollHeight},100)
+  }
+
+  function submitSignup(){
+    if(!signName.trim()||!signEmail.trim())return;
+    DB.ref("signups").push({name:signName.trim(),email:signEmail.trim(),leagues:signLeagues,ts:Date.now()});
+    setSignSent(true);
+    // Also send via mailto
+    var body="New Team League Sign Up!%0A%0AName: "+encodeURIComponent(signName)+ "%0AEmail: "+encodeURIComponent(signEmail)+"%0AInterested in: "+encodeURIComponent(signLeagues.join(", "));
+    var link=document.createElement("a");link.href="mailto:mikebrippe@gmail.com?subject=Team%20League%20Sign%20Up%20-%20"+encodeURIComponent(signName)+"&body="+body;link.click();
+  }
+
+  function toggleLeague(lg){
+    if(signLeagues.includes(lg))setSignLeagues(signLeagues.filter(function(x){return x!==lg}));
+    else setSignLeagues([].concat(signLeagues,[lg]));
+  }
+
+  var tabs=[{id:"standings",l:"Standings"},{id:"rosters",l:"Rosters"},{id:"draft",l:"Draft Room"},{id:"records",l:"MLB Data"},{id:"rules",l:"Rules"},{id:"signup",l:"Sign Up"}];
 
   return (
     <div style={{fontFamily:"'Libre Franklin',sans-serif",background:"#F7F6F3",minHeight:"100vh"}}>
@@ -389,6 +429,41 @@ function App(){
             {dor&&dr<7&&<div><div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5,marginBottom:10}}>AVAILABLE TEAMS ({avail.length} remaining)</div><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{avail.map(function(t){return <button key={t} onClick={function(){doPick(t)}} style={{background:"#fff",border:"1px solid #DDD",borderRadius:6,padding:"8px 16px",fontSize:13,fontWeight:500,color:N,fontFamily:"'Libre Franklin',sans-serif"}} onMouseEnter={function(e){e.currentTarget.style.background=LG;e.currentTarget.style.borderColor=G}} onMouseLeave={function(e){e.currentTarget.style.background="#fff";e.currentTarget.style.borderColor="#DDD"}}>{teamL(t,16)}</button>})}</div></div>}
             {dr>=7&&<div style={{textAlign:"center",padding:20,background:LG,borderRadius:10,border:"1px solid "+G}}><div style={{fontSize:24,marginBottom:4}}>{"🎉"}</div><div style={{fontSize:16,fontWeight:800,color:N}}>Draft Complete - Rosters Locked!</div><div style={{fontSize:13,color:GY,marginTop:4}}>All picks are final. Check the Standings and Rosters tabs.</div><div style={{marginTop:8,fontSize:12,color:GY}}>Undrafted: {ALL_TEAMS.filter(function(t){return!taken.includes(t)}).join(", ")||"None"}</div></div>}
           </div>}
+
+          {/* TRASH TALK */}
+          <div style={{marginTop:24,background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+            <div style={{background:N,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{color:"#fff",fontSize:14,fontWeight:700}}>TRASH TALK</span>
+              <span style={{color:G,fontSize:11}}>{chatMsgs.length} messages</span>
+            </div>
+            <div ref={chatRef} style={{height:250,overflowY:"auto",padding:"12px 16px",background:"#FAFAFA"}}>
+              {chatMsgs.length===0&&<div style={{textAlign:"center",padding:40,color:GY,fontSize:13}}>No messages yet. Start the trash talk!</div>}
+              {chatMsgs.map(function(m,i){
+                var t=new Date(m.ts);
+                var time=t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+                var date=t.toLocaleDateString([],{month:"short",day:"numeric"});
+                return <div key={i} style={{marginBottom:12}}>
+                  <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                    <span style={{fontSize:13,fontWeight:700,color:N}}>{m.name}</span>
+                    <span style={{fontSize:9,color:"#C0C0C0"}}>{date} {time}</span>
+                  </div>
+                  <div style={{fontSize:13,color:GY,marginTop:2,paddingLeft:0}}>{m.msg}</div>
+                </div>
+              })}
+            </div>
+            <div style={{padding:"12px 16px",borderTop:"1px solid #E5E5E5",display:"flex",gap:8,flexWrap:"wrap"}}>
+              {!chatName.trim()?
+                <div style={{display:"flex",gap:8,width:"100%"}}>
+                  <input value={chatName} onChange={function(e){setChatName(e.target.value)}} placeholder="Your name" style={{flex:1,padding:"10px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:13,fontFamily:"'Libre Franklin',sans-serif"}}/>
+                  <button onClick={function(){}} style={{background:N,color:"#fff",border:"none",borderRadius:6,padding:"10px 20px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif",opacity:0.5}}>JOIN</button>
+                </div>:
+                <div style={{display:"flex",gap:8,width:"100%"}}>
+                  <div style={{fontSize:11,fontWeight:700,color:G,display:"flex",alignItems:"center",paddingRight:4}}>{chatName}</div>
+                  <input value={chatInput} onChange={function(e){setChatInput(e.target.value)}} onKeyDown={function(e){if(e.key==="Enter")sendChat()}} placeholder="Talk trash..." style={{flex:1,padding:"10px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:13,fontFamily:"'Libre Franklin',sans-serif"}}/>
+                  <button onClick={sendChat} style={{background:G,color:N,border:"none",borderRadius:6,padding:"10px 20px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>SEND</button>
+                </div>}
+            </div>
+          </div>
         </div>}
 
         {tab==="records"&&<div>
@@ -450,6 +525,108 @@ function App(){
               Support via Venmo - $1
             </a>
             <div style={{fontSize:10,color:"#ffffff40",marginTop:12}}>@michaelrippe</div>
+          </div>
+        </div>}
+
+        {/* SIGN UP TAB */}
+        {tab==="signup"&&<div>
+          {/* Hero */}
+          <div style={{background:N,borderRadius:12,padding:"40px 24px",textAlign:"center",marginBottom:24}}>
+            <div style={{fontSize:11,color:G,fontWeight:700,letterSpacing:4,marginBottom:8}}>COMING SOON</div>
+            <div style={{fontSize:28,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",marginBottom:8}}>Team League is Expanding</div>
+            <div style={{fontSize:14,color:"#ffffff80",maxWidth:500,margin:"0 auto"}}>The same draft-and-compete format you love from MLB Team League - coming to more sports. Sign up to get early access and league invites.</div>
+          </div>
+
+          {/* League logos */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))",gap:16,marginBottom:24}}>
+            {[
+              {name:"MLB",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/mlb.png&w=100",status:"ACTIVE",color:GR},
+              {name:"NFL",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nfl.png&w=100",status:"COMING 2026",color:G},
+              {name:"NBA",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png&w=100",status:"COMING 2026",color:G},
+              {name:"NHL",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nhl.png&w=100",status:"COMING 2027",color:GY},
+              {name:"World Cup",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/fifa.world.png&w=100",status:"COMING 2026",color:G}
+            ].map(function(lg){
+              var selected=signLeagues.includes(lg.name);
+              return <div key={lg.name} onClick={function(){if(lg.name!=="MLB")toggleLeague(lg.name)}} style={{
+                background:selected?"#fff":"#fff",borderRadius:12,padding:"20px 16px",textAlign:"center",
+                border:selected?"2px solid "+G:"1px solid #E5E5E5",cursor:lg.name==="MLB"?"default":"pointer",
+                transition:"all 0.15s",opacity:lg.name==="MLB"?0.7:1
+              }}>
+                <img src={lg.logo} alt={lg.name} style={{width:50,height:50,objectFit:"contain",marginBottom:8}} onError={function(e){e.target.style.display="none"}}/>
+                <div style={{fontSize:14,fontWeight:800,color:N}}>{lg.name}</div>
+                <div style={{fontSize:10,fontWeight:700,color:lg.color,letterSpacing:1,marginTop:4}}>{lg.status}</div>
+                {lg.name!=="MLB"&&<div style={{fontSize:9,color:selected?GR:GY,marginTop:4}}>{selected?"SELECTED":"Click to select"}</div>}
+              </div>
+            })}
+          </div>
+
+          {/* Sign Up Form */}
+          <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+            <div style={{background:N,padding:"14px 24px"}}><span style={{color:"#fff",fontSize:14,fontWeight:700}}>SIGN UP FOR FUTURE LEAGUES</span></div>
+            {signSent?
+              <div style={{padding:"40px 24px",textAlign:"center"}}>
+                <div style={{fontSize:32,marginBottom:12}}>{"✅"}</div>
+                <div style={{fontSize:18,fontWeight:800,color:N,fontFamily:"'Playfair Display',serif",marginBottom:8}}>You're on the list!</div>
+                <div style={{fontSize:13,color:GY}}>We'll reach out when new leagues open up.</div>
+                {signLeagues.length>0&&<div style={{fontSize:12,color:G,fontWeight:600,marginTop:8}}>Interested in: {signLeagues.join(", ")}</div>}
+              </div>:
+              <div style={{padding:"24px"}}>
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1,marginBottom:6}}>YOUR NAME</div>
+                  <input value={signName} onChange={function(e){setSignName(e.target.value)}} placeholder="Full name" style={{width:"100%",padding:"12px 14px",border:"1px solid #DDD",borderRadius:8,fontSize:14,color:N,fontFamily:"'Libre Franklin',sans-serif",boxSizing:"border-box"}}/>
+                </div>
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1,marginBottom:6}}>EMAIL</div>
+                  <input value={signEmail} onChange={function(e){setSignEmail(e.target.value)}} placeholder="your@email.com" type="email" style={{width:"100%",padding:"12px 14px",border:"1px solid #DDD",borderRadius:8,fontSize:14,color:N,fontFamily:"'Libre Franklin',sans-serif",boxSizing:"border-box"}}/>
+                </div>
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1,marginBottom:6}}>LEAGUES YOU'RE INTERESTED IN</div>
+                  <div style={{fontSize:12,color:GY,marginBottom:8}}>Click the league cards above to select, or check below:</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                    {["NFL","NBA","NHL","World Cup"].map(function(lg){
+                      var sel=signLeagues.includes(lg);
+                      return <button key={lg} onClick={function(){toggleLeague(lg)}} style={{
+                        background:sel?N:"#fff",color:sel?"#fff":N,
+                        border:"1px solid "+(sel?N:"#DDD"),borderRadius:20,padding:"6px 16px",
+                        fontSize:12,fontWeight:600,fontFamily:"'Libre Franklin',sans-serif"
+                      }}>{sel?"+ ":""}{lg}</button>
+                    })}
+                  </div>
+                </div>
+                <button onClick={submitSignup} disabled={!signName.trim()||!signEmail.trim()} style={{
+                  width:"100%",background:signName.trim()&&signEmail.trim()?G:MG,
+                  color:signName.trim()&&signEmail.trim()?N:"#999",
+                  border:"none",borderRadius:8,padding:"14px",fontSize:14,fontWeight:800,
+                  fontFamily:"'Libre Franklin',sans-serif",
+                  cursor:signName.trim()&&signEmail.trim()?"pointer":"not-allowed"
+                }}>SIGN UP</button>
+                <div style={{fontSize:10,color:GY,textAlign:"center",marginTop:8}}>We'll never spam you. League invites and updates only.</div>
+              </div>}
+          </div>
+
+          {/* What to expect */}
+          <div style={{marginTop:24,background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+            <div style={{background:N,padding:"14px 24px"}}><span style={{color:"#fff",fontSize:14,fontWeight:700}}>WHAT TO EXPECT</span></div>
+            <div style={{padding:"24px"}}>
+              {[
+                {emoji:"🏈",title:"NFL Team League",desc:"Draft 8 NFL teams. Most combined regular season wins takes the pot. Launching Fall 2026."},
+                {emoji:"🏀",title:"NBA Team League",desc:"Draft 8 NBA teams. 82 games of drama. Total wins decide the champion. Launching Fall 2026."},
+                {emoji:"🏒",title:"NHL Team League",desc:"Draft 8 NHL teams. Same wins-based format adapted for hockey. Target: 2027 season."},
+                {emoji:"⚽",title:"World Cup Team League",desc:"Draft national teams for the 2026 FIFA World Cup. Points-based scoring through the tournament. Summer 2026."}
+              ].map(function(item){return <div key={item.title} style={{display:"flex",gap:16,marginBottom:20,alignItems:"flex-start"}}>
+                <div style={{fontSize:28}}>{item.emoji}</div>
+                <div>
+                  <div style={{fontSize:14,fontWeight:700,color:N,marginBottom:4}}>{item.title}</div>
+                  <div style={{fontSize:12,color:GY,lineHeight:1.6}}>{item.desc}</div>
+                </div>
+              </div>})}
+            </div>
+          </div>
+
+          {/* Social proof */}
+          <div style={{marginTop:24,padding:"20px 24px",background:LG,borderRadius:12,border:"1px solid "+G+"40",textAlign:"center"}}>
+            <div style={{fontSize:13,fontWeight:700,color:N}}>MLB Team League - Est. 2015</div>
+            <div style={{fontSize:12,color:GY,marginTop:4}}>4 managers - 11 seasons strong - Join the next chapter</div>
           </div>
         </div>}
 
