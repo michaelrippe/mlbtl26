@@ -107,10 +107,10 @@ function App(){
     setTimeout(function(){
       html2canvas(draftResultsRef.current,{backgroundColor:"#F7F6F3",scale:2}).then(function(canvas){
         canvas.toBlob(function(blob){
-          if(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File([blob],"mlb-tl-draft-2026.png",{type:"image/png"})]})){
-            navigator.share({files:[new File([blob],"mlb-tl-draft-2026.png",{type:"image/png"})],title:"MLB Team League 2026 Draft"})
+          if(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File([blob],"mlb-tl-26-draft-recap.png",{type:"image/png"})]})){
+            navigator.share({files:[new File([blob],"mlb-tl-26-draft-recap.png",{type:"image/png"})],title:"MLB TL 26 Draft Recap"})
           }else{
-            var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="mlb-tl-draft-2026.png";a.click()
+            var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="mlb-tl-26-draft-recap.png";a.click()
           }
         },"image/png")
       })
@@ -203,6 +203,8 @@ function App(){
   var dM=dm||(dor&&!dlk)?liveMgrs:mg;
   var top=dR[0]?dR[0].s.tw:0;
   var taken=dpk.reduce(function(a,b){return a.concat(b)},[]);
+  // When draft is locked, also include teams from managers (dpk may be incomplete in Firebase)
+  if(dlk){mg.forEach(function(m){(m.teams||[]).forEach(function(t){if(t&&!taken.includes(t))taken.push(t)})})}
   var avail=ALL_TEAMS.filter(function(t){return!taken.includes(t)});
   var cur=dr<7?snk[dr][dp]:-1;
   var named=dmg.every(function(n){return(n||"").trim()!==""});
