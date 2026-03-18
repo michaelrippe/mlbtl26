@@ -19,6 +19,37 @@ button{cursor:pointer}
 button:active{transform:scale(0.97)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@media(max-width:600px){
+  h1{font-size:22px!important}
+  .hdr{padding:16px 16px 12px!important}
+  .hdr-row{flex-direction:column!important;align-items:flex-start!important;gap:8px}
+  .hdr-right{text-align:left!important}
+  .cd-bar{padding:8px 12px!important;gap:12px!important}
+  .cd-num{font-size:16px!important}
+  .tabs-row button{padding:8px 12px!important;font-size:10px!important;letter-spacing:1px!important}
+  .prize-row{flex-direction:column!important}
+  .prize-card{min-width:auto!important}
+  .prize-val{font-size:22px!important}
+  .st-table th,.st-table td{padding:8px 6px!important;font-size:11px!important}
+  .st-table .rk{font-size:14px!important}
+  .st-table .mgr{font-size:13px!important}
+  .st-table .wins{font-size:13px!important}
+  .roster-grid{grid-template-columns:1fr!important}
+  .draft-mgr-grid{grid-template-columns:repeat(2,1fr)!important}
+  .avail-btn{padding:6px 10px!important;font-size:11px!important}
+  .draft-board{min-width:auto!important}
+  .draft-board th,.draft-board td{padding:6px 4px!important;font-size:10px!important}
+  .order-banner{padding:10px 12px!important;gap:12px!important}
+  .order-banner .pos{font-size:13px!important}
+  .order-banner .nm{font-size:11px!important}
+  .celeb-card{padding:20px 24px!important;max-width:90vw!important}
+  .celeb-logo{width:70px!important;height:70px!important}
+  .celeb-team{font-size:22px!important}
+  .celeb-gif{max-width:220px!important}
+}
+.move-up{color:#2E7D32;font-size:10px;font-weight:800}
+.move-down{color:#C62828;font-size:10px;font-weight:800}
+.move-same{color:#6B7280;font-size:10px}
 </style>
 </head>
 <body>
@@ -149,7 +180,9 @@ function normalize(d) {
     draftPicks: cleanPicks(d.draftPicks),
     draftOrder: cleanOrder(d.draftOrder),
     draftLocked: !!d.draftLocked,
-    namesLocked: !!d.namesLocked
+    namesLocked: !!d.namesLocked,
+    prevRankings: d.prevRankings || null,
+    prevRankingsDate: d.prevRankingsDate || ""
   };
 }
 function defaultData() {
@@ -160,7 +193,8 @@ function defaultData() {
     records: r, draftMode: false, draftRound: 0, draftPick: 0,
     draftManagers: [].concat(MNAMES),
     draftPicks: [["_"],["_"],["_"],["_"]],
-    draftOrder: "none", draftLocked: false, namesLocked: false
+    draftOrder: "none", draftLocked: false, namesLocked: false,
+    prevRankings: null, prevRankingsDate: ""
   };
 }
 </script>
@@ -286,7 +320,7 @@ function App() {
 
   if (!state) return <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",fontSize:24,color:N}}>⚾ Loading...</div>;
 
-  const {managers:mgrs, records:recs, draftMode:dm, draftRound:dr, draftPick:dp, draftManagers:dmg, draftPicks:dpk, draftOrder:dor, draftLocked:dlk, namesLocked:nlk} = state;
+  const {managers:mgrs, records:recs, draftMode:dm, draftRound:dr, draftPick:dp, draftManagers:dmg, draftPicks:dpk, draftOrder:dor, draftLocked:dlk, namesLocked:nlk, prevRankings:prevRk} = state;
   const base = dor || [0,1,2,3];
   const rev = [].concat(base).reverse();
   const snake = [[].concat(base),rev,[].concat(base),[].concat(rev),[].concat(base),[].concat(rev),[].concat(base)];
@@ -318,6 +352,84 @@ function App() {
   const avail = ALL_TEAMS.filter(t=>!taken.includes(t));
   const cur = dr<7?snk[dr][dp]:-1;
   const named = dmg.every(n=>(n||"").trim()!=="");
+
+  // Auto-save weekly snapshot every Monday
+  React.useEffect(() => {
+    if (!state || !dlk) return; // only after draft is done
+    const now = new Date();
+    const isMonday = now.getDay() === 1;
+    const lastSaved = state.prevRankingsDate || "";
+    const today = now.toISOString().slice(0,10);
+    if (isMonday && lastSaved !== today && displayRanked[0] && displayRanked[0].s.tw > 0) {
+      const snapshot = {};
+      displayRanked.forEach(function(m, i) { snapshot[m.name] = i + 1; });
+      GAME.update({prevRankings: snapshot, prevRankingsDate: today});
+    }
+  }, [state]);
+
+  // ===== BADGE ENGINE =====
+  function computeBadges() {
+    const badges = {}; // {managerName: [array of badge strings]}
+    displayRanked.forEach(function(m){ badges[m.name] = []; });
+    if (!dlk && !dor) return badges; // no badges before draft
+
+    // Find all team records for each manager
+    const mgrTeamData = displayRanked.map(function(m) {
+      const teams = (m.teams||[]).map(function(t){ return {name:t, w:(recs[t]||{w:0}).w, l:(recs[t]||{l:0}).l}; });
+      return {name:m.name, teams:teams, tw:m.s.tw, tl:m.s.tl};
+    });
+
+    // 🎯 Sharpshooter - manager with the single best team in the league
+    let bestSingleW = -1, bestSingleMgr = "", bestSingleTeam = "";
+    mgrTeamData.forEach(function(m){
+      m.teams.forEach(function(t){
+        if(t.w > bestSingleW){bestSingleW=t.w; bestSingleMgr=m.name; bestSingleTeam=t.name;}
+      });
+    });
+    if(bestSingleW > 0 && bestSingleMgr) badges[bestSingleMgr].push("🎯 Sharpshooter (" + bestSingleTeam + " " + bestSingleW + "W)");
+
+    // 💎 Diamond Pick - same as sharpshooter but labeled differently for best record
+    if(bestSingleW > 0 && bestSingleMgr) badges[bestSingleMgr].push("💎 Diamond Pick");
+
+    // 💩 Stinker - manager who owns the worst team in MLB (among drafted teams)
+    let worstW = 9999, worstMgr = "", worstTeam = "";
+    mgrTeamData.forEach(function(m){
+      m.teams.forEach(function(t){
+        if(t.w + t.l > 0 && t.w < worstW){worstW=t.w; worstMgr=m.name; worstTeam=t.name;}
+      });
+    });
+    if(worstW < 9999 && worstMgr) badges[worstMgr].push("💩 Stinker (" + worstTeam + " " + worstW + "W)");
+
+    // 💯 Century Club + 🏔️ Summit milestones
+    mgrTeamData.forEach(function(m){
+      if(m.tw >= 500) badges[m.name].push("🏔️ 500 Club");
+      else if(m.tw >= 400) badges[m.name].push("🏔️ 400 Club");
+      else if(m.tw >= 300) badges[m.name].push("🏔️ 300 Club");
+      else if(m.tw >= 200) badges[m.name].push("🏔️ 200 Club");
+      else if(m.tw >= 100) badges[m.name].push("💯 Century Club");
+    });
+
+    // 🔥 Hot Streak - manager with most wins (1st place)
+    if(displayRanked.length > 0 && displayRanked[0].s.tw > 0) {
+      badges[displayRanked[0].name].push("🔥 Hot Streak");
+    }
+
+    // ❄️ Cold Streak - manager with fewest wins (last place)
+    if(displayRanked.length > 1 && displayRanked[displayRanked.length-1].s.tw > 0) {
+      badges[displayRanked[displayRanked.length-1].name].push("❄️ Cold Streak");
+    }
+
+    // 🏆 Sweep - all 7 teams above .500
+    mgrTeamData.forEach(function(m){
+      if(m.teams.length === 7) {
+        const allAbove = m.teams.every(function(t){ return (t.w+t.l) > 0 && t.w > t.l; });
+        if(allAbove) badges[m.name].push("🏆 Clean Sweep");
+      }
+    });
+
+    return badges;
+  }
+  const badges = computeBadges();
 
   function pick(team) {
     if(cur<0||dlk||taken.includes(team))return;
@@ -386,6 +498,23 @@ function App() {
 
   const ttabs=[{id:"standings",l:"Standings"},{id:"rosters",l:"Rosters"},{id:"draft",l:"Draft Room"},{id:"records",l:"MLB Data"}];
   const pad = (v) => String(v).padStart(2,"0");
+
+  // Movement arrows - compare current rank to previous snapshot
+  function getMovement(name, currentRank) {
+    if (!prevRk) return null;
+    const prev = prevRk[name];
+    if (prev === undefined || prev === null) return null;
+    if (currentRank < prev) return prev - currentRank; // moved up (lower rank = better)
+    if (currentRank > prev) return -(currentRank - prev); // moved down
+    return 0;
+  }
+
+  function saveRankingsSnapshot() {
+    if (!isAdmin) return;
+    const snapshot = {};
+    displayRanked.forEach(function(m, i) { snapshot[m.name] = i + 1; });
+    push({prevRankings: snapshot});
+  }
   const teamLabel = (name, size) => {
     const sz = size || 18;
     return <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
@@ -397,14 +526,14 @@ function App() {
   return (
     <div style={{fontFamily:"'Libre Franklin',sans-serif",background:"#F7F6F3",minHeight:"100vh"}}>
       {/* HEADER */}
-      <div style={{background:N,padding:"28px 32px 20px",position:"relative",overflow:"hidden"}}>
+      <div className="hdr" style={{background:N,padding:"28px 32px 20px",position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",top:0,right:0,width:300,height:"100%",background:"linear-gradient(135deg,transparent 40%,"+G+"15)",pointerEvents:"none"}}/>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",position:"relative"}}>
+        <div className="hdr-row" style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",position:"relative"}}>
           <div>
             <div style={{color:G,fontSize:11,fontWeight:700,letterSpacing:4,textTransform:"uppercase",marginBottom:4}}>⚾ The Official</div>
             <h1 style={{color:"#fff",fontSize:32,fontWeight:900,margin:0,fontFamily:"'Playfair Display',serif"}}>MLB Team League <span style={{color:G}}>2026</span></h1>
           </div>
-          <div style={{color:G,fontSize:12,fontWeight:600,letterSpacing:1,textAlign:"right"}}>
+          <div className="hdr-right" style={{color:G,fontSize:12,fontWeight:600,letterSpacing:1,textAlign:"right"}}>
             DEFENDING CHAMP: RIPCITY
             <div style={{fontSize:10,color:"#ffffff80",marginTop:2}}>
               Est. 2015{" "}
@@ -415,13 +544,13 @@ function App() {
         </div>
 
         {/* COUNTDOWN */}
-        <div style={{marginTop:16,background:G+"15",borderRadius:8,padding:"12px 20px",display:"flex",justifyContent:"center",alignItems:"center",gap:24,border:"1px solid "+G+"30",flexWrap:"wrap"}}>
+        <div className="cd-bar" style={{marginTop:16,background:G+"15",borderRadius:8,padding:"12px 20px",display:"flex",justifyContent:"center",alignItems:"center",gap:24,border:"1px solid "+G+"30",flexWrap:"wrap"}}>
           <div style={{fontSize:11,color:G,fontWeight:700,letterSpacing:2}}>{cd.go?"⚾ SEASON IS LIVE":"FIRST PITCH — NYY @ SF"}</div>
           {!cd.go ? (
             <div style={{display:"flex",gap:16}}>
               {[{v:cd.d,l:"DAYS"},{v:cd.h,l:"HRS"},{v:cd.m,l:"MIN"},{v:cd.s,l:"SEC"}].map(x=>(
                 <div key={x.l} style={{textAlign:"center"}}>
-                  <div style={{fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",lineHeight:1}}>{pad(x.v)}</div>
+                  <div className="cd-num" style={{fontSize:22,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",lineHeight:1}}>{pad(x.v)}</div>
                   <div style={{fontSize:8,color:G,fontWeight:700,letterSpacing:1.5,marginTop:2}}>{x.l}</div>
                 </div>
               ))}
@@ -431,7 +560,7 @@ function App() {
         </div>
 
         {/* TABS */}
-        <div style={{display:"flex",gap:0,marginTop:20,borderBottom:"2px solid "+G+"33"}}>
+        <div className="tabs-row" style={{display:"flex",gap:0,marginTop:20,borderBottom:"2px solid "+G+"33"}}>
           {ttabs.map(t=>(
             <button key={t.id} onClick={()=>setTab(t.id)} style={{
               background:tab===t.id?G:"transparent",color:tab===t.id?N:"#ffffff99",
@@ -455,37 +584,38 @@ function App() {
         {/* STANDINGS */}
         {tab==="standings" && (
           <div>
-            <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
+            <div className="prize-row" style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
               {[["Reg Season","$150","$50 entry"],["World Series","$75","$25 entry"],["Best Team","🏆","Bragging Rights"]].map(x=>(
-                <div key={x[0]} style={{flex:1,minWidth:180,background:"#fff",borderRadius:10,padding:"16px 20px",border:"1px solid "+G+"40"}}>
+                <div key={x[0]} className="prize-card" style={{flex:1,minWidth:180,background:"#fff",borderRadius:10,padding:"16px 20px",border:"1px solid "+G+"40"}}>
                   <div style={{fontSize:11,color:GY,fontWeight:600,letterSpacing:1,textTransform:"uppercase"}}>{x[0]}</div>
-                  <div style={{fontSize:28,fontWeight:900,color:N,fontFamily:"'Playfair Display',serif",marginTop:4}}>{x[1]}</div>
+                  <div className="prize-val" style={{fontSize:28,fontWeight:900,color:N,fontFamily:"'Playfair Display',serif",marginTop:4}}>{x[1]}</div>
                   <div style={{fontSize:11,color:GY,marginTop:2}}>{x[2]}</div>
                 </div>
               ))}
             </div>
-            <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+            <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",overflowX:"auto"}}>
               <div style={{background:N,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{color:"#fff",fontSize:14,fontWeight:700}}>LEAGUE STANDINGS</span>
-                <span style={{color:G,fontSize:11}}>7 TEAMS PER MANAGER</span>
+                <span style={{color:G,fontSize:11}}>TOTAL WINS ACROSS 7 TEAMS</span>
               </div>
-              <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <table className="st-table" style={{width:"100%",borderCollapse:"collapse"}}>
                 <thead><tr style={{background:LN}}>
-                  {["RK","MANAGER","W","L","PCT","GB","AVG W","BEST TEAM"].map(h=>(
-                    <th key={h} style={{padding:"10px 16px",fontSize:10,fontWeight:700,color:N,letterSpacing:1.5,textAlign:h==="MANAGER"?"left":"center"}}>{h}</th>
+                  {["RK","","MANAGER","WINS","GB","AVG W","BEST TEAM"].map(h=>(
+                    <th key={h} style={{padding:"10px 16px",fontSize:h==="WINS"?13:10,fontWeight:h==="WINS"?800:700,color:h==="WINS"?GR:N,letterSpacing:1.5,textAlign:h==="MANAGER"?"left":"center"}}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {displayRanked.map((m,i)=>{
                     const gb=i===0?"—":(top-m.s.tw);
+                    const mv = getMovement(m.name, i+1);
+                    const mvEl = mv === null ? "" : mv > 0 ? <span className="move-up">▲{mv}</span> : mv < 0 ? <span className="move-down">▼{Math.abs(mv)}</span> : <span className="move-same">—</span>;
                     return(
                       <tr key={m.name||i} style={{background:i===0?LG:i%2===0?"#FAFAFA":"#fff"}}>
-                        <td style={{padding:"14px 16px",textAlign:"center",fontWeight:800,fontSize:18,color:i===0?G:N,fontFamily:"'Playfair Display',serif"}}>{i+1}</td>
-                        <td style={{padding:"14px 16px",fontWeight:700,fontSize:15,color:N}}>{m.name||"—"}{m.name==="Ripcity"?" 👑":""}</td>
-                        <td style={{textAlign:"center",fontWeight:800,fontSize:16,color:GR}}>{m.s.tw}</td>
-                        <td style={{textAlign:"center",color:GY}}>{m.s.tl}</td>
-                        <td style={{textAlign:"center",fontWeight:600,color:N}}>{m.s.pct.toFixed(3)}</td>
-                        <td style={{textAlign:"center",color:typeof gb==="number"?RD:GY,fontWeight:600}}>{gb}</td>
+                        <td className="rk" style={{padding:"14px 16px",textAlign:"center",fontWeight:800,fontSize:18,color:i===0?G:N,fontFamily:"'Playfair Display',serif"}}>{i+1}</td>
+                        <td style={{textAlign:"center",padding:"4px 2px"}}>{mvEl}</td>
+                        <td className="mgr" style={{padding:"14px 16px",fontWeight:700,fontSize:15,color:N}}>{m.name||"—"}{m.name==="Ripcity"?" 👑":""}</td>
+                        <td className="wins" style={{textAlign:"center",fontWeight:900,fontSize:24,color:GR,fontFamily:"'Playfair Display',serif"}}>{m.s.tw}</td>
+                        <td style={{textAlign:"center",color:typeof gb==="number"?RD:GY,fontWeight:700,fontSize:15}}>{gb}</td>
                         <td style={{textAlign:"center",fontSize:13,color:GY}}>{m.s.avg.toFixed(1)}</td>
                         <td style={{textAlign:"center",fontSize:13,fontWeight:600,color:N}}>{m.s.bt?teamLabel(m.s.bt,16):""}{m.s.bw>0?" ("+m.s.bw+"W)":""}</td>
                       </tr>
@@ -494,10 +624,34 @@ function App() {
                 </tbody>
               </table>
             </div>
+
+            {/* MILESTONE BADGES */}
+            {dlk && displayRanked.some(m=>(badges[m.name]||[]).length > 0) && (
+              <div style={{marginTop:24,background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+                <div style={{background:N,padding:"14px 24px"}}>
+                  <span style={{color:"#fff",fontSize:14,fontWeight:700,letterSpacing:1}}>MILESTONE BADGES</span>
+                </div>
+                <div style={{padding:"16px 24px",display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))",gap:16}}>
+                  {displayRanked.map((m,i) => {
+                    const mb = badges[m.name] || [];
+                    if (mb.length === 0) return null;
+                    return (
+                      <div key={m.name} style={{padding:"12px 16px",background:i===0?LG:"#FAFAFA",borderRadius:8,border:"1px solid #E5E5E5"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:N,marginBottom:8}}>{m.name}</div>
+                        {mb.map((b,bi) => (
+                          <div key={bi} style={{fontSize:12,color:GY,marginBottom:4,lineHeight:1.5}}>{b}</div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div style={{marginTop:24,padding:"16px 20px",background:"#fff",borderRadius:10,border:"1px solid #E5E5E5"}}>
               <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5,marginBottom:8}}>LEAGUE RULES</div>
               <div style={{fontSize:12,color:GY,lineHeight:1.8}}>
-                Snake draft (7 rds) · 4 managers · 28 teams drafted · Highest total wins = champion · Tiebreaker: In the event of a tie, the manager with the team with the most wins wins · Entry: $75/mgr ($50 reg + $25 WS) · Prize pool: $225 · <span style={{fontWeight:700,color:G}}>Draft Day: March 16, 2026</span>
+                Snake draft (7 rds) · 4 managers · 28 teams drafted · <span style={{fontWeight:800,color:N}}>WINS ARE ALL THAT MATTER — most total wins = champion</span> · Tiebreaker: manager whose single best team has the most wins · Entry: $75/mgr ($50 reg + $25 WS) · Prize pool: $225 · <span style={{fontWeight:700,color:G}}>Draft Day: March 16, 2026</span>
               </div>
             </div>
           </div>
@@ -505,33 +659,37 @@ function App() {
 
         {/* ROSTERS */}
         {tab==="rosters" && (
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:16}}>
+          <div className="roster-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:16}}>
             {displayRanked.map((m,mi)=>(
               <div key={m.name||mi} style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
                 <div style={{background:N,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{color:"#fff",fontWeight:700,fontSize:15}}>{m.name||"—"}</span>
-                  <span style={{color:G,fontWeight:800,fontSize:18,fontFamily:"'Playfair Display',serif"}}>{m.s.tw}W</span>
+                  <span style={{color:G,fontWeight:900,fontSize:22,fontFamily:"'Playfair Display',serif"}}>{m.s.tw}<span style={{fontSize:11,fontWeight:600,marginLeft:2}}>W</span></span>
                 </div>
+                {(badges[m.name]||[]).length > 0 && (
+                  <div style={{padding:"6px 14px",background:LG,borderBottom:"1px solid #E5E5E5",display:"flex",flexWrap:"wrap",gap:8}}>
+                    {(badges[m.name]||[]).map((b,bi) => (
+                      <span key={bi} style={{fontSize:10,color:N,fontWeight:600}}>{b}</span>
+                    ))}
+                  </div>
+                )}
                 <table style={{width:"100%",borderCollapse:"collapse"}}>
                   <thead><tr style={{background:LN}}>
-                    <th style={{padding:"8px 14px",fontSize:10,fontWeight:700,color:N,textAlign:"left"}}>TEAM</th>
-                    <th style={{padding:"8px 10px",fontSize:10,fontWeight:700,color:N,textAlign:"center"}}>W</th>
-                    <th style={{padding:"8px 10px",fontSize:10,fontWeight:700,color:N,textAlign:"center"}}>L</th>
+                    <th style={{padding:"8px 14px",fontSize:10,fontWeight:700,color:N,textAlign:"left",letterSpacing:1}}>TEAM</th>
+                    <th style={{padding:"8px 10px",fontSize:12,fontWeight:800,color:GR,textAlign:"center",letterSpacing:1}}>WINS</th>
                   </tr></thead>
                   <tbody>
                     {[].concat(m.teams||[]).sort((a,b)=>(recs[b]?recs[b].w:0)-(recs[a]?recs[a].w:0)).map((t,ti)=>{
                       const r=recs[t]||{w:0,l:0};
                       return(<tr key={t} style={{background:ti%2===0?"#FAFAFA":"#fff",borderLeft:t===m.s.bt?"3px solid "+G:"3px solid transparent"}}>
                         <td style={{padding:"10px 14px",fontSize:13,color:N}}>{teamLabel(t,18)}</td>
-                        <td style={{textAlign:"center",fontSize:13,fontWeight:700,color:GR}}>{r.w}</td>
-                        <td style={{textAlign:"center",fontSize:13,color:GY}}>{r.l}</td>
+                        <td style={{textAlign:"center",fontSize:17,fontWeight:800,color:GR}}>{r.w}</td>
                       </tr>);
                     })}
                   </tbody>
                   <tfoot><tr style={{background:LG}}>
-                    <td style={{padding:"10px 14px",fontWeight:700,fontSize:12,color:N}}>TOTAL</td>
-                    <td style={{textAlign:"center",fontWeight:800,fontSize:14,color:GR}}>{m.s.tw}</td>
-                    <td style={{textAlign:"center",fontWeight:700,fontSize:13,color:N}}>{m.s.tl}</td>
+                    <td style={{padding:"10px 14px",fontWeight:700,fontSize:12,color:N}}>TOTAL WINS</td>
+                    <td style={{textAlign:"center",fontWeight:900,fontSize:20,color:GR,fontFamily:"'Playfair Display',serif"}}>{m.s.tw}</td>
                   </tr></tfoot>
                 </table>
               </div>
@@ -552,7 +710,10 @@ function App() {
                   {!isAdmin ? (
                     <input type="password" placeholder="Password" value={pwd} onChange={e=>setPwd(e.target.value)} style={{padding:"6px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:12,width:120,fontFamily:"'Libre Franklin',sans-serif"}}/>
                   ) : (
-                    <button onClick={undo} style={{background:RD,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>↩ UNDO LAST PICK</button>
+                    <div style={{display:"flex",gap:6}}>
+                      <button onClick={undo} style={{background:RD,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>↩ UNDO PICK</button>
+                      <button onClick={saveRankingsSnapshot} style={{background:N,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>📊 SAVE WEEK</button>
+                    </div>
                   )}
                   <button onClick={()=>{setAdmin(false);setPwd("")}} style={{background:"transparent",border:"none",fontSize:14,color:GY}}>✕</button>
                 </div>
@@ -573,7 +734,7 @@ function App() {
             ) : (
               <div>
                 {/* Manager inputs */}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+                <div className="draft-mgr-grid" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
                   {dmg.map((name,i)=>(
                     <div key={i}>
                       <div style={{fontSize:10,fontWeight:700,color:GY,letterSpacing:1,marginBottom:4}}>MANAGER {i+1}</div>
@@ -619,12 +780,12 @@ function App() {
 
                 {/* Draft order banner */}
                 {dor && (
-                  <div style={{background:N,borderRadius:10,padding:"14px 24px",marginBottom:16,display:"flex",justifyContent:"center",alignItems:"center",gap:24,flexWrap:"wrap"}}>
+                  <div className="order-banner" style={{background:N,borderRadius:10,padding:"14px 24px",marginBottom:16,display:"flex",justifyContent:"center",alignItems:"center",gap:24,flexWrap:"wrap"}}>
                     <span style={{fontSize:11,fontWeight:700,color:G,letterSpacing:2}}>DRAFT ORDER</span>
                     {dor.map((mIdx,pos)=>(
                       <div key={pos} style={{display:"flex",alignItems:"center",gap:6}}>
-                        <span style={{fontSize:16,fontWeight:900,color:G,fontFamily:"'Playfair Display',serif"}}>{pos+1}.</span>
-                        <span style={{fontSize:13,fontWeight:600,color:"#fff"}}>{dmg[mIdx]}</span>
+                        <span className="pos" style={{fontSize:16,fontWeight:900,color:G,fontFamily:"'Playfair Display',serif"}}>{pos+1}.</span>
+                        <span className="nm" style={{fontSize:13,fontWeight:600,color:"#fff"}}>{dmg[mIdx]}</span>
                       </div>
                     ))}
                     <span style={{fontSize:10,color:"#ffffff50"}}>🔒 LOCKED</span>
@@ -716,7 +877,7 @@ function App() {
               <table style={{width:"100%",borderCollapse:"collapse",minWidth:450}}>
                 <thead><tr style={{background:N}}>
                   {["TEAM","W","L","PCT","OWNER"].map(hd=>(
-                    <th key={hd} style={{padding:"10px 16px",color:"#fff",fontSize:10,fontWeight:700,letterSpacing:1.5,textAlign:hd==="TEAM"||hd==="OWNER"?"left":"center"}}>{hd}</th>
+                    <th key={hd} style={{padding:"10px 16px",color:hd==="L"||hd==="PCT"?"#ffffff60":"#fff",fontSize:hd==="W"?12:10,fontWeight:700,letterSpacing:1.5,textAlign:hd==="TEAM"||hd==="OWNER"?"left":"center"}}>{hd}</th>
                   ))}
                 </tr></thead>
                 <tbody>
@@ -729,15 +890,15 @@ function App() {
                         <td style={{padding:"10px 16px",fontWeight:600,fontSize:13,color:N}}>{teamLabel(t,18)}</td>
                         <td style={{textAlign:"center",padding:"10px 8px"}}>
                           {editRec?(
-                            <input type="number" value={r.w} onChange={e=>setRec(t,"w",e.target.value)} style={{width:50,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:4,fontSize:13,fontWeight:700,color:GR,fontFamily:"'Libre Franklin'"}}/>
-                          ):<span style={{fontWeight:700,color:GR,fontSize:13}}>{r.w}</span>}
+                            <input type="number" value={r.w} onChange={e=>setRec(t,"w",e.target.value)} style={{width:55,textAlign:"center",border:"2px solid "+GR,borderRadius:4,padding:4,fontSize:14,fontWeight:800,color:GR,fontFamily:"'Libre Franklin'"}}/>
+                          ):<span style={{fontWeight:800,color:GR,fontSize:15}}>{r.w}</span>}
                         </td>
                         <td style={{textAlign:"center",padding:"10px 8px"}}>
                           {editRec?(
-                            <input type="number" value={r.l} onChange={e=>setRec(t,"l",e.target.value)} style={{width:50,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:4,fontSize:13,color:GY,fontFamily:"'Libre Franklin'"}}/>
-                          ):<span style={{color:GY,fontSize:13}}>{r.l}</span>}
+                            <input type="number" value={r.l} onChange={e=>setRec(t,"l",e.target.value)} style={{width:50,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:4,fontSize:11,color:"#C0C0C0",fontFamily:"'Libre Franklin'"}}/>
+                          ):<span style={{color:"#C0C0C0",fontSize:11}}>{r.l}</span>}
                         </td>
-                        <td style={{textAlign:"center",fontSize:13,color:N}}>{pct}</td>
+                        <td style={{textAlign:"center",fontSize:11,color:"#C0C0C0"}}>{pct}</td>
                         <td style={{padding:"10px 16px",fontSize:12,color:owner==="—"?"#CCC":G,fontWeight:600}}>{owner}</td>
                       </tr>
                     );
