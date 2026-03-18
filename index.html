@@ -83,7 +83,7 @@ function App(){
         var nameMap={"Schoen":"Gainzy","Rippe":"Ripcity"};var ch=false;
         ns.managers.forEach(function(m){if(nameMap[m.name]){m.name=nameMap[m.name];ch=true}});
         ns.draftManagers=ns.draftManagers.map(function(n){if(nameMap[n]){ch=true;return nameMap[n]}return n});
-        if(ch)GAME.update({managers:ns.managers.map(function(m){return{name:m.name,teams:m.teams.length===0?["_"]:m.teams,wsPick:m.wsPick||""}}),draftManagers:ns.draftManagers});
+        if(ch&&!skip.current){skip.current=true;GAME.update({managers:ns.managers.map(function(m){return{name:m.name,teams:m.teams.length===0?["_"]:m.teams,wsPick:m.wsPick||""}}),draftManagers:ns.draftManagers})}
         setState(ns);setLive(true);
         if(ns.draftOrder)setShuffled(ns.draftOrder);
         var tp=ns.draftPicks.reduce(function(a,b){return a+b.length},0);
@@ -139,11 +139,13 @@ function App(){
   var named=dmg.every(function(n){return(n||"").trim()!==""});
   var pad=function(v){return String(v).padStart(2,"0")};
 
-  // Auto weekly snapshot
+  // Auto weekly snapshot - runs once per Monday
+  var weekSaved=React.useRef(false);
   React.useEffect(function(){
-    if(!state||!dlk)return;var now=new Date();var isMon=now.getDay()===1;var ls=state.prevRankingsDate||"";var td=now.toISOString().slice(0,10);
-    if(isMon&&ls!==td&&dR[0]&&dR[0].s.tw>0){var sn={};dR.forEach(function(m,i){sn[m.name]=i+1});GAME.update({prevRankings:sn,prevRankingsDate:td})}
-  },[state]);
+    if(!state||!dlk||weekSaved.current)return;
+    var now=new Date();var isMon=now.getDay()===1;var ls=state.prevRankingsDate||"";var td=now.toISOString().slice(0,10);
+    if(isMon&&ls!==td&&dR[0]&&dR[0].s.tw>0){weekSaved.current=true;var sn={};dR.forEach(function(m,i){sn[m.name]=i+1});GAME.update({prevRankings:sn,prevRankingsDate:td})}
+  },[dlk]);
 
   function getMv(name,rank){if(!prk)return null;var p=prk[name];if(p===undefined||p===null)return null;if(rank<p)return p-rank;if(rank>p)return-(rank-p);return 0}
 
