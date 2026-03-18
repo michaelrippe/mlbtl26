@@ -481,7 +481,7 @@ function App() {
                     return(
                       <tr key={m.name||i} style={{background:i===0?LG:i%2===0?"#FAFAFA":"#fff"}}>
                         <td style={{padding:"14px 16px",textAlign:"center",fontWeight:800,fontSize:18,color:i===0?G:N,fontFamily:"'Playfair Display',serif"}}>{i+1}</td>
-                        <td style={{padding:"14px 16px",fontWeight:700,fontSize:15,color:N}}>{m.name||"—"}{i===0?" 👑":""}</td>
+                        <td style={{padding:"14px 16px",fontWeight:700,fontSize:15,color:N}}>{m.name||"—"}{m.name==="Ripcity"?" 👑":""}</td>
                         <td style={{textAlign:"center",fontWeight:800,fontSize:16,color:GR}}>{m.s.tw}</td>
                         <td style={{textAlign:"center",color:GY}}>{m.s.tl}</td>
                         <td style={{textAlign:"center",fontWeight:600,color:N}}>{m.s.pct.toFixed(3)}</td>
