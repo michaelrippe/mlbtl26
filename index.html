@@ -32,6 +32,8 @@ h1{font-size:22px!important}
 .st-table th,.st-table td{padding:8px 4px!important;font-size:10px!important}
 .roster-grid{grid-template-columns:1fr!important}
 .draft-mgr-grid{grid-template-columns:repeat(2,1fr)!important}
+.draft-layout{flex-direction:column!important}
+.draft-sidebar{width:100%!important;min-width:0!important;position:relative!important;top:0!important}
 }
 </style>
 </head>
@@ -396,7 +398,7 @@ function App(){
             </div>}
           </div>
 
-          <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
+          <div className="draft-layout" style={{display:"flex",gap:16,alignItems:"flex-start"}}>
             {/* LEFT - DRAFT CONTENT */}
             <div style={{flex:1,minWidth:0}}>
           {!dm?<div style={{textAlign:"center",padding:40}}>
@@ -436,7 +438,7 @@ function App(){
             </div>
 
             {/* RIGHT - TRASH TALK SIDEBAR */}
-            <div style={{width:280,minWidth:280,position:"sticky",top:16}}>
+            <div className="draft-sidebar" style={{width:280,minWidth:280,position:"sticky",top:16}}>
               <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
                 <div style={{background:N,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span style={{color:"#fff",fontSize:12,fontWeight:700}}>TRASH TALK</span>
