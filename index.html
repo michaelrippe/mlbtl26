@@ -60,7 +60,8 @@ function defData(){var r={};ALL_TEAMS.forEach(function(t){r[t]={w:0,l:0}});retur
 <script type="text/babel">
 function App(){
   const[state,setState]=React.useState(null);
-  const[tab,setTab]=React.useState("standings");
+  const[tab,setTabState]=React.useState(function(){var h=window.location.hash.replace("#","");return["standings","rosters","draft","records","rules","signup"].includes(h)?h:"standings"});
+  function setTab(t){setTabState(t);window.location.hash=t}
   const[editRec,setEditRec]=React.useState(false);
   const[recPwd,setRecPwd]=React.useState("");
   const recUnlocked=recPwd==="rippe26";
