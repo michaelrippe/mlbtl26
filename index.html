@@ -395,6 +395,10 @@ function App(){
               <button onClick={function(){setAdm(false);setPwd("")}} style={{background:"transparent",border:"none",fontSize:14,color:GY}}>x</button>
             </div>}
           </div>
+
+          <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
+            {/* LEFT - DRAFT CONTENT */}
+            <div style={{flex:1,minWidth:0}}>
           {!dm?<div style={{textAlign:"center",padding:40}}>
             <div style={{fontSize:18,fontWeight:700,color:N,marginBottom:12}}>{dlk?"2026 Draft Complete":"Ready to draft for 2026?"}</div>
             <div style={{fontSize:15,fontWeight:700,color:G,marginBottom:8}}>DRAFT DAY: March 16, 2026</div>
@@ -429,39 +433,43 @@ function App(){
             {dor&&dr<7&&<div><div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5,marginBottom:10}}>AVAILABLE TEAMS ({avail.length} remaining)</div><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{avail.map(function(t){return <button key={t} onClick={function(){doPick(t)}} style={{background:"#fff",border:"1px solid #DDD",borderRadius:6,padding:"8px 16px",fontSize:13,fontWeight:500,color:N,fontFamily:"'Libre Franklin',sans-serif"}} onMouseEnter={function(e){e.currentTarget.style.background=LG;e.currentTarget.style.borderColor=G}} onMouseLeave={function(e){e.currentTarget.style.background="#fff";e.currentTarget.style.borderColor="#DDD"}}>{teamL(t,16)}</button>})}</div></div>}
             {dr>=7&&<div style={{textAlign:"center",padding:20,background:LG,borderRadius:10,border:"1px solid "+G}}><div style={{fontSize:24,marginBottom:4}}>{"🎉"}</div><div style={{fontSize:16,fontWeight:800,color:N}}>Draft Complete - Rosters Locked!</div><div style={{fontSize:13,color:GY,marginTop:4}}>All picks are final. Check the Standings and Rosters tabs.</div><div style={{marginTop:8,fontSize:12,color:GY}}>Undrafted: {ALL_TEAMS.filter(function(t){return!taken.includes(t)}).join(", ")||"None"}</div></div>}
           </div>}
+            </div>
 
-          {/* TRASH TALK */}
-          <div style={{marginTop:24,background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
-            <div style={{background:N,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{color:"#fff",fontSize:14,fontWeight:700}}>TRASH TALK</span>
-              <span style={{color:G,fontSize:11}}>{chatMsgs.length} messages</span>
-            </div>
-            <div ref={chatRef} style={{height:250,overflowY:"auto",padding:"12px 16px",background:"#FAFAFA"}}>
-              {chatMsgs.length===0&&<div style={{textAlign:"center",padding:40,color:GY,fontSize:13}}>No messages yet. Start the trash talk!</div>}
-              {chatMsgs.map(function(m,i){
-                var t=new Date(m.ts);
-                var time=t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
-                var date=t.toLocaleDateString([],{month:"short",day:"numeric"});
-                return <div key={i} style={{marginBottom:12}}>
-                  <div style={{display:"flex",alignItems:"baseline",gap:8}}>
-                    <span style={{fontSize:13,fontWeight:700,color:N}}>{m.name}</span>
-                    <span style={{fontSize:9,color:"#C0C0C0"}}>{date} {time}</span>
-                  </div>
-                  <div style={{fontSize:13,color:GY,marginTop:2,paddingLeft:0}}>{m.msg}</div>
+            {/* RIGHT - TRASH TALK SIDEBAR */}
+            <div style={{width:280,minWidth:280,position:"sticky",top:16}}>
+              <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+                <div style={{background:N,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{color:"#fff",fontSize:12,fontWeight:700}}>TRASH TALK</span>
+                  <span style={{color:G,fontSize:9}}>{chatMsgs.length} msgs</span>
                 </div>
-              })}
-            </div>
-            <div style={{padding:"12px 16px",borderTop:"1px solid #E5E5E5",display:"flex",gap:8,flexWrap:"wrap"}}>
-              {!chatName.trim()?
-                <div style={{display:"flex",gap:8,width:"100%"}}>
-                  <input value={chatName} onChange={function(e){setChatName(e.target.value)}} placeholder="Your name" style={{flex:1,padding:"10px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:13,fontFamily:"'Libre Franklin',sans-serif"}}/>
-                  <button onClick={function(){}} style={{background:N,color:"#fff",border:"none",borderRadius:6,padding:"10px 20px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif",opacity:0.5}}>JOIN</button>
-                </div>:
-                <div style={{display:"flex",gap:8,width:"100%"}}>
-                  <div style={{fontSize:11,fontWeight:700,color:G,display:"flex",alignItems:"center",paddingRight:4}}>{chatName}</div>
-                  <input value={chatInput} onChange={function(e){setChatInput(e.target.value)}} onKeyDown={function(e){if(e.key==="Enter")sendChat()}} placeholder="Talk trash..." style={{flex:1,padding:"10px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:13,fontFamily:"'Libre Franklin',sans-serif"}}/>
-                  <button onClick={sendChat} style={{background:G,color:N,border:"none",borderRadius:6,padding:"10px 20px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>SEND</button>
-                </div>}
+                <div ref={chatRef} style={{height:400,overflowY:"auto",padding:"10px 12px",background:"#FAFAFA"}}>
+                  {chatMsgs.length===0&&<div style={{textAlign:"center",padding:30,color:GY,fontSize:11}}>No messages yet. Start the trash talk!</div>}
+                  {chatMsgs.map(function(m,i){
+                    var t=new Date(m.ts);
+                    var time=t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+                    return <div key={i} style={{marginBottom:10}}>
+                      <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                        <span style={{fontSize:12,fontWeight:700,color:N}}>{m.name}</span>
+                        <span style={{fontSize:8,color:"#C0C0C0"}}>{time}</span>
+                      </div>
+                      <div style={{fontSize:12,color:GY,marginTop:1}}>{m.msg}</div>
+                    </div>
+                  })}
+                </div>
+                <div style={{padding:"8px 10px",borderTop:"1px solid #E5E5E5"}}>
+                  {!chatName.trim()?
+                    <div style={{display:"flex",gap:6}}>
+                      <input value={chatName} onChange={function(e){setChatName(e.target.value)}} placeholder="Your name" style={{flex:1,padding:"8px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:11,fontFamily:"'Libre Franklin',sans-serif"}}/>
+                    </div>:
+                    <div>
+                      <div style={{fontSize:9,fontWeight:700,color:G,marginBottom:4}}>{chatName}</div>
+                      <div style={{display:"flex",gap:6}}>
+                        <input value={chatInput} onChange={function(e){setChatInput(e.target.value)}} onKeyDown={function(e){if(e.key==="Enter")sendChat()}} placeholder="Talk trash..." style={{flex:1,padding:"8px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:11,fontFamily:"'Libre Franklin',sans-serif"}}/>
+                        <button onClick={sendChat} style={{background:G,color:N,border:"none",borderRadius:6,padding:"8px 12px",fontSize:10,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>SEND</button>
+                      </div>
+                    </div>}
+                </div>
+              </div>
             </div>
           </div>
         </div>}
