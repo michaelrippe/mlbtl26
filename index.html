@@ -59,6 +59,8 @@ function App(){
   const[state,setState]=React.useState(null);
   const[tab,setTab]=React.useState("standings");
   const[editRec,setEditRec]=React.useState(false);
+  const[recPwd,setRecPwd]=React.useState("");
+  const recUnlocked=recPwd==="rippe26";
   const[anim,setAnim]=React.useState(false);
   const[shuffled,setShuffled]=React.useState(null);
   const[cd,setCd]=React.useState({d:0,h:0,m:0,s:0,go:false});
@@ -169,7 +171,7 @@ function App(){
   }
   var badges=getBadges();
 
-  function teamL(name,sz){return <span style={{display:"inline-flex",alignItems:"center",gap:5}}><img src={LOGOS[name]||""} alt="" style={{width:sz||18,height:sz||18,objectFit:"contain"}} onError={function(e){e.target.style.display="none"}}/>{name}</span>}
+  function teamL(name,sz){return <span style={{display:"inline-flex",alignItems:"center",gap:5}}><img src={LOGOS[name]||""} alt="" style={{width:sz||18,height:sz||18,objectFit:"contain"}} onError={function(e){e.target.style.display="none"}}/>{name}{name==="Dodgers"?" \uD83C\uDFC6":""}</span>}
 
   function doPick(team){
     if(cur<0||dlk||taken.includes(team))return;
@@ -222,8 +224,36 @@ function App(){
 
         {tab==="standings"&&<div>
           <div className="prize-row" style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
-            {[["Reg Season","$150","$50 entry"],["World Series","$75","$25 entry"],["Best Team","Trophy","Bragging Rights"]].map(function(x){return <div key={x[0]} style={{flex:1,minWidth:180,background:"#fff",borderRadius:10,padding:"16px 20px",border:"1px solid "+G+"40"}}><div style={{fontSize:11,color:GY,fontWeight:600,letterSpacing:1,textTransform:"uppercase"}}>{x[0]}</div><div style={{fontSize:28,fontWeight:900,color:N,fontFamily:"'Playfair Display',serif",marginTop:4}}>{x[1]}</div><div style={{fontSize:11,color:GY,marginTop:2}}>{x[2]}</div></div>})}
+            {[["Reg Season","$150","$50 entry"],["World Series","$75","$25 entry"],["Best Team","\uD83C\uDFC6","Bragging Rights"]].map(function(x){return <div key={x[0]} style={{flex:1,minWidth:180,background:"#fff",borderRadius:10,padding:"16px 20px",border:"1px solid "+G+"40"}}><div style={{fontSize:11,color:GY,fontWeight:600,letterSpacing:1,textTransform:"uppercase"}}>{x[0]}</div><div style={{fontSize:28,fontWeight:900,color:N,fontFamily:"'Playfair Display',serif",marginTop:4}}>{x[1]}</div><div style={{fontSize:11,color:GY,marginTop:2}}>{x[2]}</div></div>})}
           </div>
+
+          {/* SEASON PROGRESS BAR */}
+          {(function(){
+            var seasonStart=new Date("2026-03-25T00:00:00-04:00");
+            var seasonEnd=new Date("2026-09-27T23:59:59-04:00");
+            var now=new Date();
+            var totalDays=Math.floor((seasonEnd-seasonStart)/864e5);
+            var elapsed=Math.floor((now-seasonStart)/864e5);
+            var pct=Math.max(0,Math.min(100,Math.round((elapsed/totalDays)*100)));
+            var gamesOf162=Math.round(pct*1.62);
+            var started=now>=seasonStart;
+            var ended=now>=seasonEnd;
+            return <div style={{marginBottom:24,background:"#fff",borderRadius:10,padding:"16px 20px",border:"1px solid #E5E5E5"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5}}>SEASON PROGRESS</div>
+                <div style={{fontSize:11,color:GY}}>{ended?"SEASON COMPLETE":started?("Day "+Math.max(1,elapsed)+" of "+totalDays+" - ~"+gamesOf162+" of 162 games"):"STARTS MAR 25"}</div>
+              </div>
+              <div style={{background:"#E5E5E5",borderRadius:20,height:12,overflow:"hidden",position:"relative"}}>
+                <div style={{background:started?"linear-gradient(90deg,"+GR+","+G+")":"#E5E5E5",height:"100%",borderRadius:20,width:(started?Math.max(1,pct):0)+"%",transition:"width 0.5s ease"}}/>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
+                <span style={{fontSize:9,color:GY}}>Mar 25</span>
+                <span style={{fontSize:10,fontWeight:700,color:started?GR:GY}}>{started?(ended?"100":pct)+"%":"0%"}</span>
+                <span style={{fontSize:9,color:GY}}>Sep 27</span>
+              </div>
+            </div>
+          })()}
+
           <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",overflowX:"auto"}}>
             <div style={{background:N,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{color:"#fff",fontSize:14,fontWeight:700}}>LEAGUE STANDINGS</span><span style={{color:G,fontSize:11}}>TOTAL WINS ACROSS 7 TEAMS</span></div>
             <table className="st-table" style={{width:"100%",borderCollapse:"collapse"}}>
@@ -314,7 +344,15 @@ function App(){
         </div>}
 
         {tab==="records"&&<div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5}}>MLB TEAM RECORDS</div><button onClick={function(){setEditRec(!editRec)}} style={{background:editRec?GR:N,color:"#fff",border:"none",padding:"8px 20px",fontSize:12,fontWeight:700,borderRadius:6,fontFamily:"'Libre Franklin',sans-serif"}}>{editRec?"Done":"Edit Records"}</button></div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5}}>MLB TEAM RECORDS</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              {!recUnlocked&&!editRec?
+                <input type="password" placeholder="Admin password" value={recPwd} onChange={function(e){setRecPwd(e.target.value)}} style={{padding:"6px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:11,width:130,fontFamily:"'Libre Franklin',sans-serif"}}/>:null}
+              {recUnlocked?
+                <button onClick={function(){setEditRec(!editRec)}} style={{background:editRec?GR:N,color:"#fff",border:"none",padding:"8px 20px",fontSize:12,fontWeight:700,borderRadius:6,fontFamily:"'Libre Franklin',sans-serif"}}>{editRec?"Done":"Edit Records"}</button>:null}
+            </div>
+          </div>
           <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",overflowX:"auto"}}>
             <table style={{width:"100%",borderCollapse:"collapse",minWidth:450}}>
               <thead><tr style={{background:N}}>{["TEAM","W","L","OWNER"].map(function(h){return <th key={h} style={{padding:"10px 16px",color:h==="L"?"#ffffff60":"#fff",fontSize:h==="W"?12:10,fontWeight:700,letterSpacing:1.5,textAlign:h==="TEAM"||h==="OWNER"?"left":"center"}}>{h}</th>})}</tr></thead>
