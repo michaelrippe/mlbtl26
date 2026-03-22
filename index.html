@@ -34,6 +34,7 @@ h1{font-size:22px!important}
 .draft-mgr-grid{grid-template-columns:repeat(2,1fr)!important}
 .draft-layout{flex-direction:column!important}
 .draft-sidebar{width:100%!important;min-width:0!important;position:relative!important;top:0!important}
+.division-grid{grid-template-columns:1fr!important}
 }
 </style>
 </head>
@@ -60,7 +61,7 @@ function defData(){var r={};ALL_TEAMS.forEach(function(t){r[t]={w:0,l:0}});retur
 <script type="text/babel">
 function App(){
   const[state,setState]=React.useState(null);
-  const[tab,setTabState]=React.useState(function(){var h=window.location.hash.replace("#","");return["standings","rosters","draft","records","rules","signup"].includes(h)?h:"standings"});
+  const[tab,setTabState]=React.useState(function(){var h=window.location.hash.replace("#","");if(h==="records")h="rosters";return["standings","rosters","draft","rules","signup"].includes(h)?h:"standings"});
   function setTab(t){setTabState(t);window.location.hash=t}
   const[editRec,setEditRec]=React.useState(false);
   const[recPwd,setRecPwd]=React.useState("");
@@ -271,7 +272,7 @@ function App(){
     else setSignLeagues([].concat(signLeagues,[lg]));
   }
 
-  var tabs=[{id:"standings",l:"Standings"},{id:"rosters",l:"Rosters"},{id:"draft",l:"Draft Room"},{id:"records",l:"MLB Data"},{id:"rules",l:"Rules"},{id:"signup",l:"Sign Up"}];
+  var tabs=[{id:"standings",l:"Standings"},{id:"rosters",l:"Rosters"},{id:"draft",l:"Draft Room"},{id:"rules",l:"Rules"},{id:"signup",l:"Sign Up"}];
 
   return (
     <div style={{fontFamily:"'Libre Franklin',sans-serif",background:"#F7F6F3",minHeight:"100vh"}}>
@@ -396,16 +397,66 @@ function App(){
           </div>
         </div>}
 
-        {tab==="rosters"&&<div className="roster-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:16}}>
-          {dR.map(function(m,mi){return <div key={m.name||mi} style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
-            <div style={{background:N,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{color:"#fff",fontWeight:700,fontSize:15}}>{m.name||"-"}</span><span style={{color:G,fontWeight:900,fontSize:22,fontFamily:"'Playfair Display',serif"}}>{m.s.tw}<span style={{fontSize:11,fontWeight:600,marginLeft:2}}>W</span></span></div>
-            {(badges[m.name]||[]).length>0&&<div style={{padding:"6px 14px",background:LG,borderBottom:"1px solid #E5E5E5",display:"flex",flexWrap:"wrap",gap:8}}>{(badges[m.name]||[]).map(function(b,bi){return <span key={bi} style={{fontSize:10,color:N,fontWeight:600}}>{b}</span>})}</div>}
-            <table style={{width:"100%",borderCollapse:"collapse"}}>
-              <thead><tr style={{background:LN}}><th style={{padding:"8px 14px",fontSize:10,fontWeight:700,color:N,textAlign:"left"}}>TEAM</th><th style={{padding:"8px 10px",fontSize:12,fontWeight:800,color:GR,textAlign:"center"}}>WINS</th></tr></thead>
-              <tbody>{[].concat(m.teams||[]).sort(function(a,b){return(rc[b]?rc[b].w:0)-(rc[a]?rc[a].w:0)}).map(function(t,ti){var r=rc[t]||{w:0,l:0};return <tr key={t} style={{background:ti%2===0?"#FAFAFA":"#fff",borderLeft:t===m.s.bt?"3px solid "+G:"3px solid transparent"}}><td style={{padding:"10px 14px",fontSize:13,color:N}}>{teamL(t,18)}</td><td style={{textAlign:"center",fontSize:17,fontWeight:800,color:GR}}>{r.w}</td></tr>})}</tbody>
-              <tfoot><tr style={{background:LG}}><td style={{padding:"10px 14px",fontWeight:700,fontSize:12,color:N}}>TOTAL WINS</td><td style={{textAlign:"center",fontWeight:900,fontSize:20,color:GR,fontFamily:"'Playfair Display',serif"}}>{m.s.tw}</td></tr></tfoot>
-            </table>
-          </div>})}
+        {tab==="rosters"&&<div>
+          {/* MANAGER ROSTERS */}
+          <div className="roster-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:12,marginBottom:20}}>
+            {dR.map(function(m,mi){return <div key={m.name||mi} style={{background:"#fff",borderRadius:10,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+              <div style={{background:N,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{color:"#fff",fontWeight:700,fontSize:14}}>{m.name||"-"}</span><span style={{color:G,fontWeight:900,fontSize:20,fontFamily:"'Playfair Display',serif"}}>{m.s.tw}<span style={{fontSize:10,fontWeight:600,marginLeft:2}}>W</span></span></div>
+              {(badges[m.name]||[]).length>0&&<div style={{padding:"4px 12px",background:LG,borderBottom:"1px solid #E5E5E5",display:"flex",flexWrap:"wrap",gap:6}}>{(badges[m.name]||[]).map(function(b,bi){return <span key={bi} style={{fontSize:9,color:N,fontWeight:600}}>{b}</span>})}</div>}
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead><tr style={{background:LN}}><th style={{padding:"6px 12px",fontSize:9,fontWeight:700,color:N,textAlign:"left"}}>TEAM</th><th style={{padding:"6px 8px",fontSize:10,fontWeight:800,color:GR,textAlign:"center"}}>WINS</th></tr></thead>
+                <tbody>{[].concat(m.teams||[]).sort(function(a,b){return(rc[b]?rc[b].w:0)-(rc[a]?rc[a].w:0)}).map(function(t,ti){var r=rc[t]||{w:0,l:0};return <tr key={t} style={{background:ti%2===0?"#FAFAFA":"#fff",borderLeft:t===m.s.bt?"3px solid "+G:"3px solid transparent"}}><td style={{padding:"7px 12px",fontSize:12,color:N}}>{teamL(t,16)}</td><td style={{textAlign:"center",fontSize:15,fontWeight:800,color:GR}}>{r.w}</td></tr>})}</tbody>
+                <tfoot><tr style={{background:LG}}><td style={{padding:"8px 12px",fontWeight:700,fontSize:11,color:N}}>TOTAL WINS</td><td style={{textAlign:"center",fontWeight:900,fontSize:18,color:GR,fontFamily:"'Playfair Display',serif"}}>{m.s.tw}</td></tr></tfoot>
+              </table>
+            </div>})}
+          </div>
+
+          {/* MLB STANDINGS BY DIVISION */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5}}>MLB STANDINGS BY DIVISION</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              {!recUnlocked&&!editRec?
+                <input type="password" placeholder="Admin password" value={recPwd} onChange={function(e){setRecPwd(e.target.value)}} style={{padding:"5px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:10,width:120,fontFamily:"'Libre Franklin',sans-serif"}}/>:null}
+              {recUnlocked?
+                <button onClick={function(){setEditRec(!editRec)}} style={{background:editRec?GR:N,color:"#fff",border:"none",padding:"6px 16px",fontSize:11,fontWeight:700,borderRadius:6,fontFamily:"'Libre Franklin',sans-serif"}}>{editRec?"Done":"Edit"}</button>:null}
+            </div>
+          </div>
+          <div className="division-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))",gap:12}}>
+            {[
+              {name:"AL East",teams:["Yankees","Red Sox","Blue Jays","Orioles","Rays"]},
+              {name:"AL Central",teams:["Guardians","Tigers","Twins","Royals","White Sox"]},
+              {name:"AL West",teams:["Astros","Mariners","Rangers","Angels","Athletics"]},
+              {name:"NL East",teams:["Mets","Braves","Phillies","Nationals","Marlins"]},
+              {name:"NL Central",teams:["Cubs","Brewers","Cardinals","Pirates","Reds"]},
+              {name:"NL West",teams:["Dodgers","Padres","Diamondbacks","Giants","Rockies"]}
+            ].map(function(div){
+              return <div key={div.name} style={{background:"#fff",borderRadius:10,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+                <div style={{background:N,padding:"8px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{color:"#fff",fontSize:11,fontWeight:700}}>{div.name}</span>
+                  <span style={{color:G,fontSize:9}}>{div.name.startsWith("AL")?"American":"National"}</span>
+                </div>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead><tr style={{background:LN}}>
+                    <th style={{padding:"6px 10px",fontSize:8,fontWeight:700,color:N,textAlign:"left",letterSpacing:1}}>TEAM</th>
+                    <th style={{padding:"6px 6px",fontSize:9,fontWeight:800,color:GR,textAlign:"center"}}>W</th>
+                    <th style={{padding:"6px 6px",fontSize:8,fontWeight:600,color:"#C0C0C0",textAlign:"center"}}>L</th>
+                    <th style={{padding:"6px 10px",fontSize:8,fontWeight:700,color:N,textAlign:"left"}}>OWNER</th>
+                  </tr></thead>
+                  <tbody>
+                    {[].concat(div.teams).sort(function(a,b){return(rc[b]?rc[b].w:0)-(rc[a]?rc[a].w:0)}).map(function(t,i){
+                      var r=rc[t]||{w:0,l:0};var owner="-";dM.forEach(function(m){if((m.teams||[]).includes(t))owner=m.name});
+                      return <tr key={t} style={{background:i%2===0?"#FAFAFA":"#fff"}}>
+                        <td style={{padding:"6px 10px",fontWeight:600,fontSize:11,color:N}}>{teamL(t,14)}</td>
+                        <td style={{textAlign:"center",padding:"6px 4px"}}>{editRec?<input type="number" value={r.w} onChange={function(e){setRc(t,"w",e.target.value)}} style={{width:44,textAlign:"center",border:"2px solid "+GR,borderRadius:3,padding:2,fontSize:12,fontWeight:800,color:GR,fontFamily:"'Libre Franklin'"}}/>:<span style={{fontWeight:800,color:GR,fontSize:13}}>{r.w}</span>}</td>
+                        <td style={{textAlign:"center",padding:"6px 4px"}}>{editRec?<input type="number" value={r.l} onChange={function(e){setRc(t,"l",e.target.value)}} style={{width:40,textAlign:"center",border:"1px solid #DDD",borderRadius:3,padding:2,fontSize:9,color:"#C0C0C0",fontFamily:"'Libre Franklin'"}}/>:<span style={{color:"#C0C0C0",fontSize:9}}>{r.l}</span>}</td>
+                        <td style={{padding:"6px 10px",fontSize:10,color:owner==="-"?"#CCC":G,fontWeight:600}}>{owner}</td>
+                      </tr>
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            })}
+          </div>
         </div>}
 
         {tab==="draft"&&<div>
@@ -543,53 +594,6 @@ function App(){
           </div>
         </div>}
 
-        {tab==="records"&&<div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-            <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5}}>MLB TEAM RECORDS</div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              {!recUnlocked&&!editRec?
-                <input type="password" placeholder="Admin password" value={recPwd} onChange={function(e){setRecPwd(e.target.value)}} style={{padding:"6px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:11,width:130,fontFamily:"'Libre Franklin',sans-serif"}}/>:null}
-              {recUnlocked?
-                <button onClick={function(){setEditRec(!editRec)}} style={{background:editRec?GR:N,color:"#fff",border:"none",padding:"8px 20px",fontSize:12,fontWeight:700,borderRadius:6,fontFamily:"'Libre Franklin',sans-serif"}}>{editRec?"Done":"Edit Records"}</button>:null}
-            </div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))",gap:16}}>
-            {[
-              {name:"AL East",teams:["Yankees","Red Sox","Blue Jays","Orioles","Rays"]},
-              {name:"AL Central",teams:["Guardians","Tigers","Twins","Royals","White Sox"]},
-              {name:"AL West",teams:["Astros","Mariners","Rangers","Angels","Athletics"]},
-              {name:"NL East",teams:["Mets","Braves","Phillies","Nationals","Marlins"]},
-              {name:"NL Central",teams:["Cubs","Brewers","Cardinals","Pirates","Reds"]},
-              {name:"NL West",teams:["Dodgers","Padres","Diamondbacks","Giants","Rockies"]}
-            ].map(function(div){
-              return <div key={div.name} style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
-                <div style={{background:N,padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{color:"#fff",fontSize:12,fontWeight:700}}>{div.name}</span>
-                  <span style={{color:G,fontSize:10}}>{div.name.startsWith("AL")?"American":"National"}</span>
-                </div>
-                <table style={{width:"100%",borderCollapse:"collapse"}}>
-                  <thead><tr style={{background:LN}}>
-                    <th style={{padding:"8px 12px",fontSize:9,fontWeight:700,color:N,textAlign:"left",letterSpacing:1}}>TEAM</th>
-                    <th style={{padding:"8px 8px",fontSize:10,fontWeight:800,color:GR,textAlign:"center"}}>W</th>
-                    <th style={{padding:"8px 8px",fontSize:9,fontWeight:600,color:"#C0C0C0",textAlign:"center"}}>L</th>
-                    <th style={{padding:"8px 12px",fontSize:9,fontWeight:700,color:N,textAlign:"left"}}>OWNER</th>
-                  </tr></thead>
-                  <tbody>
-                    {[].concat(div.teams).sort(function(a,b){return(rc[b]?rc[b].w:0)-(rc[a]?rc[a].w:0)}).map(function(t,i){
-                      var r=rc[t]||{w:0,l:0};var owner="-";dM.forEach(function(m){if((m.teams||[]).includes(t))owner=m.name});
-                      return <tr key={t} style={{background:i%2===0?"#FAFAFA":"#fff"}}>
-                        <td style={{padding:"8px 12px",fontWeight:600,fontSize:12,color:N}}>{teamL(t,16)}</td>
-                        <td style={{textAlign:"center",padding:"8px 6px"}}>{editRec?<input type="number" value={r.w} onChange={function(e){setRc(t,"w",e.target.value)}} style={{width:48,textAlign:"center",border:"2px solid "+GR,borderRadius:4,padding:3,fontSize:13,fontWeight:800,color:GR,fontFamily:"'Libre Franklin'"}}/>:<span style={{fontWeight:800,color:GR,fontSize:14}}>{r.w}</span>}</td>
-                        <td style={{textAlign:"center",padding:"8px 6px"}}>{editRec?<input type="number" value={r.l} onChange={function(e){setRc(t,"l",e.target.value)}} style={{width:44,textAlign:"center",border:"1px solid #DDD",borderRadius:4,padding:3,fontSize:10,color:"#C0C0C0",fontFamily:"'Libre Franklin'"}}/>:<span style={{color:"#C0C0C0",fontSize:10}}>{r.l}</span>}</td>
-                        <td style={{padding:"8px 12px",fontSize:11,color:owner==="-"?"#CCC":G,fontWeight:600}}>{owner}</td>
-                      </tr>
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            })}
-          </div>
-        </div>}
 
         {/* RULES TAB */}
         {tab==="rules"&&<div>
