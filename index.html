@@ -641,18 +641,17 @@ function App(){
               ]},
               {icon:"05",title:"ENTRY & PRIZES",items:[
                 "Entry fee: $75 per manager.",
-                "Breakdown: $50 for the regular season pool + $25 for the World Series pick pool.",
+                "Breakdown: $50 for the regular season pool + $25 for the World Series pool.",
                 "Total prize pool: $225.",
-                "Regular Season Champion: $150 (winner take all).",
-                "World Series Pick: $75 (correctly predict the World Series winner).",
+                "Regular Season Champion: $150 (most total wins, winner take all).",
+                "World Series: $75 (manager who drafted the WS-winning team).",
                 "Best Single Team: Bragging rights and the Sharpshooter badge."
               ]},
-              {icon:"06",title:"WORLD SERIES PICK",items:[
-                "Before Opening Day, each manager selects one MLB team they believe will win the 2026 World Series.",
-                "This is a separate $25 entry with a $75 winner-take-all payout.",
-                "Your World Series pick does NOT need to be a team on your roster.",
-                "If no manager picks the correct World Series winner, the $75 carries to a group activity of the Commissioner's choice.",
-                "If one of the two undrafted teams wins the World Series, all participants are banned from MLB Team League forever. No exceptions. No appeals. Draft wisely."
+              {icon:"06",title:"WORLD SERIES",items:[
+                "The manager who drafted the team that wins the 2026 World Series wins the World Series pool.",
+                "Entry: $25 per manager. Payout: $75 winner-take-all.",
+                "No separate pick required - if your drafted team wins it all, you win automatically.",
+                "If the World Series winner is one of the 2 undrafted teams, all participants are banned from MLB Team League forever. No exceptions. No appeals. Draft wisely."
               ]},
               {icon:"07",title:"COMMISSIONER",items:[
                 "The Commissioner manages the league, updates win/loss records, and resolves any disputes.",
@@ -717,65 +716,94 @@ function App(){
         {/* SIGN UP TAB */}
         {tab==="signup"&&<div>
           {/* Hero */}
-          <div style={{background:N,borderRadius:12,padding:"40px 24px",textAlign:"center",marginBottom:24}}>
-            <div style={{fontSize:11,color:G,fontWeight:700,letterSpacing:4,marginBottom:8}}>COMING SOON</div>
-            <div style={{fontSize:28,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",marginBottom:8}}>Team League is Expanding</div>
-            <div style={{fontSize:14,color:"#ffffff80",maxWidth:500,margin:"0 auto"}}>The same draft-and-compete format you love from MLB Team League - coming to more sports. Sign up to get early access and league invites.</div>
+          <div style={{background:N,borderRadius:12,padding:"40px 24px",textAlign:"center",marginBottom:24,position:"relative",overflow:"hidden"}}>
+            <div style={{position:"absolute",top:0,right:0,width:400,height:"100%",background:"linear-gradient(135deg,transparent 30%,"+G+"10)",pointerEvents:"none"}}/>
+            <div style={{position:"relative"}}>
+              <div style={{fontSize:10,color:G,fontWeight:700,letterSpacing:5,marginBottom:10}}>NOW ACCEPTING SIGN UPS</div>
+              <div style={{fontSize:30,fontWeight:900,color:"#fff",fontFamily:"'Playfair Display',serif",marginBottom:8}}>MLB Team League is <span style={{color:G}}>Expanding</span></div>
+              <div style={{fontSize:13,color:"#ffffff70",maxWidth:520,margin:"0 auto",lineHeight:1.7}}>The same draft-and-compete format that's powered 12 seasons of MLB Team League is coming to new sports. Be the first to know when new leagues launch.</div>
+            </div>
           </div>
 
-          {/* League logos */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))",gap:16,marginBottom:24}}>
+          {/* League Cards - Enhanced */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))",gap:16,marginBottom:24}}>
             {[
-              {name:"MLB",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/mlb.png&w=100",status:"ACTIVE",color:GR},
-              {name:"NFL",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nfl.png&w=100",status:"COMING 2026",color:G},
-              {name:"NBA",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png&w=100",status:"COMING 2026",color:G},
-              {name:"NHL",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nhl.png&w=100",status:"COMING 2027",color:GY},
-              {name:"World Cup",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/fifa.world.png&w=100",status:"COMING 2026",color:G}
+              {name:"MLB",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/mlb.png&w=100",status:"ACTIVE - SEASON 12",color:GR,desc:"7 teams per manager. 162-game season. Total wins.",border:GR},
+              {name:"NFL",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nfl.png&w=100",status:"FALL 2026",color:G,desc:"Draft 8 NFL teams. 18-week season. Same wins-only format.",border:G},
+              {name:"NBA",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png&w=100",status:"FALL 2026",color:G,desc:"Draft 8 NBA teams. 82-game marathon. Total wins reign.",border:G},
+              {name:"NHL",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nhl.png&w=100",status:"2027",color:GY,desc:"Draft 8 NHL teams. 82-game season on ice.",border:GY},
+              {name:"World Cup",logo:"https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/2026_FIFA_World_Cup_logo.svg/250px-2026_FIFA_World_Cup_logo.svg.png",status:"SUMMER 2026",color:G,desc:"Draft national teams for the 2026 FIFA World Cup. USA, Mexico, Canada host.",border:G}
             ].map(function(lg){
               var selected=signLeagues.includes(lg.name);
-              return <div key={lg.name} onClick={function(){if(lg.name!=="MLB")toggleLeague(lg.name)}} style={{
-                background:selected?"#fff":"#fff",borderRadius:12,padding:"20px 16px",textAlign:"center",
-                border:selected?"2px solid "+G:"1px solid #E5E5E5",cursor:lg.name==="MLB"?"default":"pointer",
-                transition:"all 0.15s",opacity:lg.name==="MLB"?0.7:1
+              var isActive=lg.name==="MLB";
+              return <div key={lg.name} onClick={function(){if(!isActive)toggleLeague(lg.name)}} style={{
+                background:"#fff",borderRadius:12,padding:"24px 16px",textAlign:"center",
+                border:selected?"2px solid "+G:"1px solid #E5E5E5",cursor:isActive?"default":"pointer",
+                transition:"all 0.2s",position:"relative",overflow:"hidden"
               }}>
-                <img src={lg.logo} alt={lg.name} style={{width:50,height:50,objectFit:"contain",marginBottom:8}} onError={function(e){e.target.style.display="none"}}/>
-                <div style={{fontSize:14,fontWeight:800,color:N}}>{lg.name}</div>
-                <div style={{fontSize:10,fontWeight:700,color:lg.color,letterSpacing:1,marginTop:4}}>{lg.status}</div>
-                {lg.name!=="MLB"&&<div style={{fontSize:9,color:selected?GR:GY,marginTop:4}}>{selected?"SELECTED":"Click to select"}</div>}
+                {isActive&&<div style={{position:"absolute",top:10,right:10,background:GR,color:"#fff",padding:"2px 8px",borderRadius:10,fontSize:8,fontWeight:700}}>LIVE</div>}
+                {selected&&!isActive&&<div style={{position:"absolute",top:10,right:10,background:G,color:N,padding:"2px 8px",borderRadius:10,fontSize:8,fontWeight:700}}>SELECTED</div>}
+                <img src={lg.logo} alt={lg.name} style={{width:60,height:60,objectFit:"contain",marginBottom:10}} onError={function(e){e.target.style.display="none"}}/>
+                <div style={{fontSize:15,fontWeight:800,color:N,marginBottom:4}}>{lg.name}</div>
+                <div style={{fontSize:9,fontWeight:700,color:lg.color,letterSpacing:1.5,marginBottom:8}}>{lg.status}</div>
+                <div style={{fontSize:11,color:GY,lineHeight:1.5}}>{lg.desc}</div>
+                {!isActive&&<div style={{marginTop:10,fontSize:10,color:selected?GR:G,fontWeight:600}}>{selected?"Added to your interests":"Click to add"}</div>}
               </div>
             })}
           </div>
 
+          {/* How It Works */}
+          <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",marginBottom:24}}>
+            <div style={{background:N,padding:"12px 20px"}}><span style={{color:"#fff",fontSize:12,fontWeight:700}}>HOW TEAM LEAGUE WORKS</span></div>
+            <div style={{padding:"20px",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
+              {[
+                {n:"1",t:"Draft",d:"Snake draft with friends. Pick real teams."},
+                {n:"2",t:"Track",d:"Follow your teams all season. Wins add up."},
+                {n:"3",t:"Compete",d:"Real-time standings. Badges. Trash talk."},
+                {n:"4",t:"Win",d:"Most total wins takes the crown and the cash."}
+              ].map(function(s){return <div key={s.n} style={{textAlign:"center"}}>
+                <div style={{width:32,height:32,borderRadius:"50%",background:N,color:G,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,fontFamily:"'Playfair Display',serif",marginBottom:8}}>{s.n}</div>
+                <div style={{fontSize:12,fontWeight:700,color:N,marginBottom:2}}>{s.t}</div>
+                <div style={{fontSize:10,color:GY}}>{s.d}</div>
+              </div>})}
+            </div>
+          </div>
+
           {/* Sign Up Form */}
-          <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
-            <div style={{background:N,padding:"14px 24px"}}><span style={{color:"#fff",fontSize:14,fontWeight:700}}>SIGN UP FOR FUTURE LEAGUES</span></div>
+          <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",marginBottom:24}}>
+            <div style={{background:N,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{color:"#fff",fontSize:14,fontWeight:700}}>SIGN UP FOR FUTURE LEAGUES</span>
+              <span style={{color:G,fontSize:10}}>FREE - NO COMMITMENT</span>
+            </div>
             {signSent?
               <div style={{padding:"40px 24px",textAlign:"center"}}>
                 <div style={{fontSize:32,marginBottom:12}}>{"✅"}</div>
                 <div style={{fontSize:18,fontWeight:800,color:N,fontFamily:"'Playfair Display',serif",marginBottom:8}}>You're on the list!</div>
                 <div style={{fontSize:13,color:GY}}>We'll reach out when new leagues open up.</div>
                 {signLeagues.length>0&&<div style={{fontSize:12,color:G,fontWeight:600,marginTop:8}}>Interested in: {signLeagues.join(", ")}</div>}
+                <button onClick={function(){setSignSent(false);setSignName("");setSignEmail("");setSignLeagues([])}} style={{marginTop:16,background:"transparent",border:"1px solid #DDD",borderRadius:6,padding:"8px 20px",fontSize:11,color:GY,fontFamily:"'Libre Franklin',sans-serif"}}>Sign up another person</button>
               </div>:
               <div style={{padding:"24px"}}>
-                <div style={{marginBottom:16}}>
-                  <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1,marginBottom:6}}>YOUR NAME</div>
-                  <input value={signName} onChange={function(e){setSignName(e.target.value)}} placeholder="Full name" style={{width:"100%",padding:"12px 14px",border:"1px solid #DDD",borderRadius:8,fontSize:14,color:N,fontFamily:"'Libre Franklin',sans-serif",boxSizing:"border-box"}}/>
-                </div>
-                <div style={{marginBottom:16}}>
-                  <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1,marginBottom:6}}>EMAIL</div>
-                  <input value={signEmail} onChange={function(e){setSignEmail(e.target.value)}} placeholder="your@email.com" type="email" style={{width:"100%",padding:"12px 14px",border:"1px solid #DDD",borderRadius:8,fontSize:14,color:N,fontFamily:"'Libre Franklin',sans-serif",boxSizing:"border-box"}}/>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+                  <div>
+                    <div style={{fontSize:10,fontWeight:700,color:N,letterSpacing:1,marginBottom:6}}>YOUR NAME</div>
+                    <input value={signName} onChange={function(e){setSignName(e.target.value)}} placeholder="Full name" style={{width:"100%",padding:"12px 14px",border:"1px solid #DDD",borderRadius:8,fontSize:14,color:N,fontFamily:"'Libre Franklin',sans-serif",boxSizing:"border-box"}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:10,fontWeight:700,color:N,letterSpacing:1,marginBottom:6}}>EMAIL</div>
+                    <input value={signEmail} onChange={function(e){setSignEmail(e.target.value)}} placeholder="your@email.com" type="email" style={{width:"100%",padding:"12px 14px",border:"1px solid #DDD",borderRadius:8,fontSize:14,color:N,fontFamily:"'Libre Franklin',sans-serif",boxSizing:"border-box"}}/>
+                  </div>
                 </div>
                 <div style={{marginBottom:20}}>
-                  <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1,marginBottom:6}}>LEAGUES YOU'RE INTERESTED IN</div>
-                  <div style={{fontSize:12,color:GY,marginBottom:8}}>Click the league cards above to select, or check below:</div>
+                  <div style={{fontSize:10,fontWeight:700,color:N,letterSpacing:1,marginBottom:8}}>WHICH LEAGUES INTEREST YOU?</div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                     {["NFL","NBA","NHL","World Cup"].map(function(lg){
                       var sel=signLeagues.includes(lg);
                       return <button key={lg} onClick={function(){toggleLeague(lg)}} style={{
                         background:sel?N:"#fff",color:sel?"#fff":N,
-                        border:"1px solid "+(sel?N:"#DDD"),borderRadius:20,padding:"6px 16px",
-                        fontSize:12,fontWeight:600,fontFamily:"'Libre Franklin',sans-serif"
-                      }}>{sel?"+ ":""}{lg}</button>
+                        border:sel?"2px solid "+G:"1px solid #DDD",borderRadius:20,padding:"8px 20px",
+                        fontSize:12,fontWeight:600,fontFamily:"'Libre Franklin',sans-serif",transition:"all 0.15s"
+                      }}>{lg}{sel?" \u2713":""}</button>
                     })}
                   </div>
                 </div>
@@ -785,34 +813,44 @@ function App(){
                   border:"none",borderRadius:8,padding:"14px",fontSize:14,fontWeight:800,
                   fontFamily:"'Libre Franklin',sans-serif",
                   cursor:signName.trim()&&signEmail.trim()?"pointer":"not-allowed"
-                }}>SIGN UP</button>
-                <div style={{fontSize:10,color:GY,textAlign:"center",marginTop:8}}>We'll never spam you. League invites and updates only.</div>
+                }}>GET EARLY ACCESS</button>
+                <div style={{fontSize:10,color:GY,textAlign:"center",marginTop:8}}>Zero spam. League invites and launch announcements only.</div>
               </div>}
           </div>
 
-          {/* What to expect */}
-          <div style={{marginTop:24,background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
-            <div style={{background:N,padding:"14px 24px"}}><span style={{color:"#fff",fontSize:14,fontWeight:700}}>WHAT TO EXPECT</span></div>
-            <div style={{padding:"24px"}}>
-              {[
-                {emoji:"🏈",title:"NFL Team League",desc:"Draft 8 NFL teams. Most combined regular season wins takes the pot. Launching Fall 2026."},
-                {emoji:"🏀",title:"NBA Team League",desc:"Draft 8 NBA teams. 82 games of drama. Total wins decide the champion. Launching Fall 2026."},
-                {emoji:"🏒",title:"NHL Team League",desc:"Draft 8 NHL teams. Same wins-based format adapted for hockey. Target: 2027 season."},
-                {emoji:"⚽",title:"World Cup Team League",desc:"Draft national teams for the 2026 FIFA World Cup. Points-based scoring through the tournament. Summer 2026."}
-              ].map(function(item){return <div key={item.title} style={{display:"flex",gap:16,marginBottom:20,alignItems:"flex-start"}}>
-                <div style={{fontSize:28}}>{item.emoji}</div>
+          {/* Upcoming Leagues Detail */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:16,marginBottom:24}}>
+            {[
+              {logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nfl.png&w=100",title:"NFL Team League",when:"Fall 2026",details:["Draft 8 of 32 NFL teams","18-week regular season","Same wins-only scoring","$75 entry, 4 managers","Launch: September 2026"]},
+              {logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png&w=100",title:"NBA Team League",when:"Fall 2026",details:["Draft 8 of 30 NBA teams","82-game regular season","Total wins determine champion","$75 entry, 4 managers","Launch: October 2026"]},
+              {logo:"https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/2026_FIFA_World_Cup_logo.svg/250px-2026_FIFA_World_Cup_logo.svg.png",title:"World Cup Team League",when:"Summer 2026",details:["Draft national teams from 48 qualified nations","Group stage + knockout rounds","Points-based scoring (3 for win, 1 for draw)","Special format for the biggest tournament on earth","Launch: June 2026 - USA, Mexico, Canada"]},
+              {logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nhl.png&w=100",title:"NHL Team League",when:"2027",details:["Draft 8 of 32 NHL teams","82-game regular season","Wins-only format on ice","$75 entry, 4 managers","Launch: October 2027"]}
+            ].map(function(lg){return <div key={lg.title} style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5"}}>
+              <div style={{padding:"20px",display:"flex",alignItems:"center",gap:16,borderBottom:"1px solid #E5E5E5"}}>
+                <img src={lg.logo} alt={lg.title} style={{width:44,height:44,objectFit:"contain"}} onError={function(e){e.target.style.display="none"}}/>
                 <div>
-                  <div style={{fontSize:14,fontWeight:700,color:N,marginBottom:4}}>{item.title}</div>
-                  <div style={{fontSize:12,color:GY,lineHeight:1.6}}>{item.desc}</div>
+                  <div style={{fontSize:14,fontWeight:700,color:N}}>{lg.title}</div>
+                  <div style={{fontSize:10,fontWeight:700,color:G,letterSpacing:1}}>{lg.when}</div>
                 </div>
-              </div>})}
-            </div>
+              </div>
+              <div style={{padding:"16px 20px"}}>
+                {lg.details.map(function(d,i){return <div key={i} style={{fontSize:11,color:GY,lineHeight:1.7,marginBottom:3}}>
+                  <span style={{color:N,marginRight:6}}>{">"}</span>{d}
+                </div>})}
+              </div>
+            </div>})}
           </div>
 
           {/* Social proof */}
-          <div style={{marginTop:24,padding:"20px 24px",background:LG,borderRadius:12,border:"1px solid "+G+"40",textAlign:"center"}}>
-            <div style={{fontSize:13,fontWeight:700,color:N}}>MLB Team League - Est. 2015</div>
-            <div style={{fontSize:12,color:GY,marginTop:4}}>4 managers - 11 seasons strong - Join the next chapter</div>
+          <div style={{padding:"24px",background:LG,borderRadius:12,border:"1px solid "+G+"40",textAlign:"center"}}>
+            <div style={{fontSize:15,fontWeight:800,color:N,fontFamily:"'Playfair Display',serif"}}>MLB Team League - Est. 2015</div>
+            <div style={{fontSize:12,color:GY,marginTop:6,lineHeight:1.6}}>12 seasons strong. 4 managers battling every year. The simplest, most competitive fantasy format in sports. Now expanding to NFL, NBA, NHL, and the 2026 FIFA World Cup.</div>
+            <div style={{marginTop:12,display:"flex",justifyContent:"center",gap:24}}>
+              {[{n:"12",l:"Seasons"},{n:"4",l:"Managers"},{n:"$225",l:"Prize Pool"},{n:"1",l:"Champion"}].map(function(s){return <div key={s.l}>
+                <div style={{fontSize:20,fontWeight:900,color:N,fontFamily:"'Playfair Display',serif"}}>{s.n}</div>
+                <div style={{fontSize:9,color:GY,fontWeight:600,letterSpacing:1}}>{s.l.toUpperCase()}</div>
+              </div>})}
+            </div>
           </div>
         </div>}
 
