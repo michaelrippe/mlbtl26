@@ -70,23 +70,58 @@ function defData(){var r={};ALL_TEAMS.forEach(function(t){r[t]={w:0,l:0}});retur
 function fbKey(name){return(name||"").replace(/[.#$/\[\]]/g,"_")}
 function fbKeyReverse(key,names){return names.find(function(n){return fbKey(n)===key})||key}
 
-// MLB Stats API team name mapping
-var MLB_NAME_MAP={"Los Angeles Angels":"Angels","Houston Astros":"Astros","Athletics":"Athletics","Oakland Athletics":"Athletics","Toronto Blue Jays":"Blue Jays","Atlanta Braves":"Braves","Milwaukee Brewers":"Brewers","St. Louis Cardinals":"Cardinals","Chicago Cubs":"Cubs","Arizona Diamondbacks":"Diamondbacks","Los Angeles Dodgers":"Dodgers","San Francisco Giants":"Giants","Cleveland Guardians":"Guardians","Seattle Mariners":"Mariners","Miami Marlins":"Marlins","New York Mets":"Mets","Washington Nationals":"Nationals","Baltimore Orioles":"Orioles","San Diego Padres":"Padres","Philadelphia Phillies":"Phillies","Pittsburgh Pirates":"Pirates","Texas Rangers":"Rangers","Tampa Bay Rays":"Rays","Boston Red Sox":"Red Sox","Cincinnati Reds":"Reds","Colorado Rockies":"Rockies","Kansas City Royals":"Royals","Detroit Tigers":"Tigers","Minnesota Twins":"Twins","Chicago White Sox":"White Sox","New York Yankees":"Yankees"};
+// Regular season: Opening Day Mar 25, 2026 through the final day Sep 27, 2026.
+var SEASON_START=new Date("2026-03-25T00:00:00-04:00");
+var SEASON_END=new Date("2026-09-27T23:59:59-04:00");
+function seasonPhase(now){
+  now=now||new Date();
+  if(now<SEASON_START)return "pre";
+  if(now>=SEASON_END)return "final";
+  return "live";
+}
+function seasonLengthDays(){return Math.floor((SEASON_END-SEASON_START)/864e5)}
+function seasonDayCount(now){
+  now=now||new Date();
+  var total=seasonLengthDays();
+  var day=Math.floor((now-SEASON_START)/864e5)+1;
+  if(day<1)day=1;
+  if(day>total)day=total;
+  return {day:day,total:total};
+}
+
+// StatsAPI standings return short team.name values ("D-backs", "Yankees") plus team.id.
+// Full names ("Arizona Diamondbacks") are kept so either form resolves. Ids are authoritative.
+var MLB_ID_MAP={108:"Angels",109:"Diamondbacks",110:"Orioles",111:"Red Sox",112:"Cubs",113:"Reds",114:"Guardians",115:"Rockies",116:"Tigers",117:"Astros",118:"Royals",119:"Dodgers",120:"Nationals",121:"Mets",133:"Athletics",134:"Pirates",135:"Padres",136:"Mariners",137:"Giants",138:"Cardinals",139:"Rays",140:"Rangers",141:"Blue Jays",142:"Twins",143:"Phillies",144:"Braves",145:"White Sox",146:"Marlins",147:"Yankees",158:"Brewers"};
+var MLB_ABBR_MAP={"ARI":"Diamondbacks","AZ":"Diamondbacks","ATL":"Braves","BAL":"Orioles","BOS":"Red Sox","CHC":"Cubs","CHW":"White Sox","CWS":"White Sox","CIN":"Reds","CLE":"Guardians","COL":"Rockies","DET":"Tigers","HOU":"Astros","KC":"Royals","KCR":"Royals","LAA":"Angels","LAD":"Dodgers","MIA":"Marlins","MIL":"Brewers","MIN":"Twins","NYM":"Mets","NYY":"Yankees","ATH":"Athletics","OAK":"Athletics","PHI":"Phillies","PIT":"Pirates","SD":"Padres","SDP":"Padres","SF":"Giants","SFG":"Giants","SEA":"Mariners","STL":"Cardinals","TB":"Rays","TBR":"Rays","TEX":"Rangers","TOR":"Blue Jays","WSH":"Nationals","WAS":"Nationals","WSN":"Nationals"};
+var MLB_NAME_MAP={"Los Angeles Angels":"Angels","Houston Astros":"Astros","Athletics":"Athletics","Oakland Athletics":"Athletics","A's":"Athletics","Toronto Blue Jays":"Blue Jays","Atlanta Braves":"Braves","Milwaukee Brewers":"Brewers","St. Louis Cardinals":"Cardinals","Chicago Cubs":"Cubs","Arizona Diamondbacks":"Diamondbacks","D-backs":"Diamondbacks","Dbacks":"Diamondbacks","Arizona D-backs":"Diamondbacks","Los Angeles Dodgers":"Dodgers","San Francisco Giants":"Giants","Cleveland Guardians":"Guardians","Seattle Mariners":"Mariners","Miami Marlins":"Marlins","New York Mets":"Mets","Washington Nationals":"Nationals","Baltimore Orioles":"Orioles","San Diego Padres":"Padres","Philadelphia Phillies":"Phillies","Pittsburgh Pirates":"Pirates","Texas Rangers":"Rangers","Tampa Bay Rays":"Rays","Boston Red Sox":"Red Sox","Cincinnati Reds":"Reds","Colorado Rockies":"Rockies","Kansas City Royals":"Royals","Detroit Tigers":"Tigers","Minnesota Twins":"Twins","Chicago White Sox":"White Sox","New York Yankees":"Yankees"};
+function resolveMLBTeam(team){
+  if(!team)return "";
+  if(team.id!=null&&MLB_ID_MAP[team.id])return MLB_ID_MAP[team.id];
+  var abbr=String(team.abbreviation||team.abbrev||"").toUpperCase();
+  if(abbr&&MLB_ABBR_MAP[abbr])return MLB_ABBR_MAP[abbr];
+  var names=[team.name,team.teamName,team.shortName,team.shortDisplayName,team.displayName,team.clubName];
+  if(team.location&&team.teamName)names.push(team.location+" "+team.teamName);
+  if(team.location&&team.name)names.push(team.location+" "+team.name);
+  for(var i=0;i<names.length;i++){
+    var n=names[i];
+    if(!n)continue;
+    if(MLB_NAME_MAP[n])return MLB_NAME_MAP[n];
+    if(ALL_TEAMS.indexOf(n)>=0)return n;
+  }
+  return "";
+}
 
 function fetchMLBStandings(){
-  // ESPN API - supports CORS, no API key needed
-  return fetch("https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings")
+  // ESPN API - supports CORS, no API key needed. Pin 2026 so the offseason does not roll to the next year.
+  return fetch("https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings?season=2026")
     .then(function(r){if(!r.ok)throw new Error("ESPN fail");return r.json()})
     .then(function(data){
       var records={};
       ALL_TEAMS.forEach(function(t){records[t]={w:0,l:0}});
-      // ESPN name mapping for edge cases
-      var espnMap={"D-backs":"Diamondbacks"};
       if(data&&data.children){
         data.children.forEach(function(conf){
           (conf.standings&&conf.standings.entries||[]).forEach(function(entry){
-            var name=(entry.team&&entry.team.shortDisplayName)||"";
-            var mapped=espnMap[name]||name;
+            var mapped=resolveMLBTeam(entry.team||{});
             if(mapped&&records[mapped]!==undefined){
               var w=0,l=0;
               (entry.stats||[]).forEach(function(s){
@@ -110,9 +145,8 @@ function fetchMLBStandings(){
           if(data&&data.records){
             data.records.forEach(function(div){
               (div.teamRecords||[]).forEach(function(tr){
-                var name=tr.team&&tr.team.name?tr.team.name:"";
-                var mapped=MLB_NAME_MAP[name];
-                if(mapped){records[mapped]={w:tr.wins||0,l:tr.losses||0}}
+                var mapped=resolveMLBTeam(tr.team||{});
+                if(mapped&&records[mapped]!==undefined){records[mapped]={w:tr.wins||0,l:tr.losses||0}}
               });
             });
           }
@@ -194,7 +228,11 @@ function App(){
           if(ns.draftOrder)setShuffled(ns.draftOrder);
           prevPC.current=ns.draftPicks.reduce(function(a,b){return a+b.length},0);
         }catch(e){console.error("norm error:",e);setState(norm(defData()));setLive(true)}
-      }else{GAME.set(defData());setState(norm(defData()));setLive(true)}
+      }else{
+        // Never seed or overwrite the database once the season is final.
+        if(seasonPhase()==="live")GAME.set(defData());
+        setState(norm(defData()));setLive(true)
+      }
     });
     return function(){GAME.off()}
   },[]);
@@ -213,6 +251,7 @@ function App(){
   // Auto weekly snapshot - runs once per Monday
   React.useEffect(function(){
     if(!state||!state.draftLocked||weekSaved.current)return;
+    if(seasonPhase()!=="live")return;
     var now=new Date();if(now.getDay()!==1)return;
     var ls=state.prevRankingsDate||"";var td=now.toISOString().slice(0,10);
     if(ls===td)return;
@@ -225,8 +264,8 @@ function App(){
   var syncRef=React.useRef(false);
   React.useEffect(function(){
     function doSync(){
-      var seasonStart=new Date("2026-03-25T00:00:00-04:00");
-      if(new Date()<seasonStart)return;
+      // Finals are frozen after Sep 27, 2026. A visit must not fetch or write standings.
+      if(seasonPhase()!=="live")return;
       setSyncing(true);
       console.log("MLB sync starting...");
       fetchMLBStandings().then(function(records){
@@ -239,12 +278,14 @@ function App(){
         setSyncing(false);
       }).catch(function(e){console.log("MLB sync error:",e);setSyncing(false)});
     }
+    if(seasonPhase()!=="live")return;
     if(!syncRef.current){syncRef.current=true;doSync()}
-    var id=setInterval(doSync,30*60*1000); // every 30 min
+    var id=setInterval(doSync,30*60*1000); // every 30 min, and only while the season is live
     return function(){clearInterval(id)}
   },[]);
 
   function manualSync(){
+    if(seasonPhase()!=="live")return;
     setSyncing(true);
     fetchMLBStandings().then(function(records){
       var hasData=ALL_TEAMS.some(function(t){return records[t]&&(records[t].w>0||records[t].l>0)});
@@ -256,8 +297,10 @@ function App(){
     }).catch(function(){setSyncing(false)});
   }
 
-  // Fetch today's scores for ticker
+  // Fetch today's scores for ticker. Skip after the season ends so an offseason visit
+  // does not call ESPN (that scoreboard request is blocked by CORS and is not a final).
   React.useEffect(function(){
+    if(seasonPhase()!=="live")return;
     function fetchScores(){
       var today=new Date().toISOString().slice(0,10).replace(/-/g,"");
       fetch("https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates="+today)
@@ -309,6 +352,15 @@ function App(){
   if(dlk){mg.forEach(function(m){(m.teams||[]).forEach(function(t){if(t&&!taken.includes(t))taken.push(t)})})}
   var avail=ALL_TEAMS.filter(function(t){return!taken.includes(t)});
   var cur=dr<7?snk[dr][dp]:-1;
+  // draftPicks is missing the last round for some managers. managers.teams is complete.
+  // Show those picks on the board only — do not write them back to Firebase.
+  function columnPicks(mIdx){
+    var picks=[].concat(dpk[mIdx]||[]).filter(function(t){return t&&t!=="_"});
+    if(!dlk)return picks;
+    var teams=(mg[mIdx]&&mg[mIdx].teams)||[];
+    teams.forEach(function(t){if(t&&t!=="_"&&picks.indexOf(t)<0)picks.push(t)});
+    return picks;
+  }
   var named=dmg.every(function(n){return(n||"").trim()!==""});
   var pad=function(v){return String(v).padStart(2,"0")};
 
@@ -388,11 +440,25 @@ function App(){
             <div style={{fontSize:10,color:"#ffffff80",marginTop:2}}>Est. 2015{" "}<span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:live?GR:RD,marginLeft:6,animation:"pulse 2s infinite"}}/><span style={{color:live?"#4CAF50":RD,fontSize:9,fontWeight:700,marginLeft:4}}>{live?"LIVE":""}</span></div>
           </div>
         </div>
-        <div style={{marginTop:10,background:GR+"20",borderRadius:6,padding:"8px 16px",display:"flex",justifyContent:"center",alignItems:"center",gap:16,border:"1px solid "+GR+"40",flexWrap:"wrap"}}>
-          <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:GR,animation:"pulse 1.5s infinite"}}/>
-          <div style={{fontSize:11,color:GR,fontWeight:800,letterSpacing:2}}>2026 SEASON IS LIVE</div>
-          {(function(){var seasonStart=new Date("2026-03-25");var now=new Date();var day=Math.max(1,Math.floor((now-seasonStart)/864e5)+1);return <div style={{fontSize:10,color:GY}}>Day {day} of 186</div>})()}
-        </div>
+        {(function(){
+          var phase=seasonPhase();
+          var days=seasonDayCount();
+          var champ=phase==="final"&&ranked[0]&&ranked[0].s.tw>0?ranked[0]:null;
+          var accent=phase==="final"?G:GR;
+          return <div style={{marginTop:10}}>
+            <div style={{background:accent+"20",borderRadius:6,padding:"8px 16px",display:"flex",justifyContent:"center",alignItems:"center",gap:16,border:"1px solid "+accent+"40",flexWrap:"wrap"}}>
+              {phase==="live"&&<span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:GR,animation:"pulse 1.5s infinite"}}/>}
+              <div style={{fontSize:11,color:accent,fontWeight:800,letterSpacing:2}}>{phase==="final"?"2026 Season Final":phase==="live"?"2026 SEASON IS LIVE":"2026 SEASON STARTS MAR 25"}</div>
+              {phase==="live"&&<div style={{fontSize:10,color:"#ffffff99"}}>Day {days.day} of {days.total}</div>}
+            </div>
+            {champ&&<div style={{marginTop:8,background:"linear-gradient(90deg,#F3E2A6,"+G+",#F3E2A6)",borderRadius:8,padding:"10px 16px",display:"flex",justifyContent:"center",alignItems:"center",gap:12,flexWrap:"wrap",border:"1px solid "+G}}>
+              <span style={{fontSize:16}}>{"\uD83C\uDFC6"}</span>
+              <span style={{fontSize:11,fontWeight:800,letterSpacing:1.5,color:N}}>2026 CHAMPION</span>
+              <span style={{fontSize:18,fontWeight:900,color:N,fontFamily:"'Playfair Display',serif"}}>{champ.name}</span>
+              <span style={{fontSize:18,fontWeight:900,color:N,fontFamily:"'Playfair Display',serif"}}>{champ.s.tw}</span>
+            </div>}
+          </div>
+        })()}
         <div className="tabs-row" style={{display:"flex",gap:0,marginTop:10,borderBottom:"2px solid "+G+"33"}}>
           {tabs.map(function(t){return <button key={t.id} onClick={function(){setTab(t.id)}} style={{background:tab===t.id?G:"transparent",color:tab===t.id?N:"#ffffff99",border:"none",padding:"8px 20px",fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",borderRadius:"6px 6px 0 0",fontFamily:"'Libre Franklin',sans-serif"}}>{t.l}</button>})}
         </div>
@@ -423,19 +489,18 @@ function App(){
 
           {/* SEASON PROGRESS BAR */}
           {(function(){
-            var seasonStart=new Date("2026-03-25T00:00:00-04:00");
-            var seasonEnd=new Date("2026-09-27T23:59:59-04:00");
             var now=new Date();
-            var totalDays=Math.floor((seasonEnd-seasonStart)/864e5);
-            var elapsed=Math.floor((now-seasonStart)/864e5);
+            var totalDays=seasonLengthDays();
+            var elapsed=Math.min(totalDays,Math.max(0,Math.floor((now-SEASON_START)/864e5)));
             var pct=Math.max(0,Math.min(100,Math.round((elapsed/totalDays)*100)));
             var gamesOf162=Math.round(pct*1.62);
-            var started=now>=seasonStart;
-            var ended=now>=seasonEnd;
+            var started=now>=SEASON_START;
+            var ended=seasonPhase()==="final";
+            var dayLabel=Math.min(totalDays,Math.max(1,elapsed));
             return <div style={{marginBottom:24,background:"#fff",borderRadius:10,padding:"16px 20px",border:"1px solid #E5E5E5"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                 <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5}}>SEASON PROGRESS</div>
-                <div style={{fontSize:11,color:GY}}>{ended?"SEASON COMPLETE":started?("Day "+Math.max(1,elapsed)+" of "+totalDays+" - ~"+gamesOf162+" of 162 games"):"STARTS MAR 25"}</div>
+                <div style={{fontSize:11,color:GY}}>{ended?"SEASON COMPLETE":started?("Day "+dayLabel+" of "+totalDays+" - ~"+gamesOf162+" of 162 games"):"STARTS MAR 25"}</div>
               </div>
               <div style={{background:"#E5E5E5",borderRadius:20,height:12,overflow:"hidden",position:"relative"}}>
                 <div style={{background:started?"linear-gradient(90deg,"+GR+","+G+")":"#E5E5E5",height:"100%",borderRadius:20,width:(started?Math.max(1,pct):0)+"%",transition:"width 0.5s ease"}}/>
@@ -449,8 +514,10 @@ function App(){
           })()}
 
           <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:10,marginBottom:8}}>
-            <span style={{fontSize:10,color:syncing?G:GY}}>{syncing?"Syncing MLB data...":lastSync?"Live MLB data - updated "+lastSync:"Live MLB data"}</span>
-            <button onClick={manualSync} disabled={syncing} style={{background:syncing?MG:N,color:syncing?"#999":"#fff",border:"none",borderRadius:6,padding:"5px 14px",fontSize:10,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>{syncing?"...":"SYNC NOW"}</button>
+            {seasonPhase()==="final"
+              ?<span style={{fontSize:10,color:GY,fontWeight:700}}>2026 finals locked</span>
+              :<span style={{fontSize:10,color:syncing?G:GY}}>{syncing?"Syncing MLB data...":lastSync?"Live MLB data - updated "+lastSync:"Live MLB data"}</span>}
+            {seasonPhase()==="live"&&<button onClick={manualSync} disabled={syncing} style={{background:syncing?MG:N,color:syncing?"#999":"#fff",border:"none",borderRadius:6,padding:"5px 14px",fontSize:10,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>{syncing?"...":"SYNC NOW"}</button>}
           </div>
           <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",overflowX:"auto"}} ref={standingsRef}>
             <div style={{background:N,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -663,14 +730,8 @@ function App(){
               {dor&&<table style={{width:"100%",borderCollapse:"collapse"}}>
                 <thead><tr style={{background:LN}}><th style={{padding:"8px",fontSize:9,fontWeight:700,color:N,width:36}}>RD</th>{dor.map(function(mIdx,pos){return <th key={pos} style={{padding:"8px 12px",fontSize:11,fontWeight:700,color:N}}>{mg[mIdx]?mg[mIdx].name:dmg[mIdx]||"Mgr "+(mIdx+1)}<div style={{fontSize:8,color:G,marginTop:1}}>Pick #{pos+1}</div></th>})}</tr></thead>
                 <tbody>{(function(){
-                  // Reconstruct full draft board from managers.teams using snake order
                   var board={};
-                  dor.forEach(function(mIdx){
-                    var teams=(mg[mIdx]&&mg[mIdx].teams)||dpk[mIdx]||[];
-                    var picks=dpk[mIdx]||[];
-                    // Use dpk if available and same length, otherwise use manager teams
-                    board[mIdx]=picks.length>=teams.length?picks:teams;
-                  });
+                  dor.forEach(function(mIdx){board[mIdx]=columnPicks(mIdx)});
                   return [0,1,2,3,4,5,6].map(function(rd){
                     return <tr key={rd} style={{background:rd%2===0?"#FAFAFA":"#fff"}}>
                       <td style={{textAlign:"center",fontWeight:800,color:N,fontSize:12,padding:8,background:LN}}>{rd+1}</td>
