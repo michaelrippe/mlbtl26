@@ -181,6 +181,12 @@ function App(){
   const[signEmail,setSignEmail]=React.useState("");
   const[signLeagues,setSignLeagues]=React.useState([]);
   const[signSent,setSignSent]=React.useState(false);
+  const[interestName,setInterestName]=React.useState("");
+  const[interestEmail,setInterestEmail]=React.useState("");
+  const[interestHp,setInterestHp]=React.useState("");
+  const[interestBusy,setInterestBusy]=React.useState(false);
+  const[interestErr,setInterestErr]=React.useState("");
+  const[interestDone,setInterestDone]=React.useState(function(){try{return localStorage.getItem("tl_interest")==="1"}catch(e){return false}});
   const chatRef=React.useRef(null);
   const skip=React.useRef(false);
   const prevPC=React.useRef(0);
@@ -448,6 +454,38 @@ function App(){
     else setSignLeagues([].concat(signLeagues,[lg]));
   }
 
+  function submitInterest(e){
+    if(e&&e.preventDefault)e.preventDefault();
+    if(interestBusy||interestDone)return;
+    if((interestHp||"").trim()){
+      try{localStorage.setItem("tl_interest","1")}catch(err){}
+      setInterestDone(true);
+      setInterestErr("");
+      return;
+    }
+    var email=interestEmail.trim().toLowerCase().slice(0,120);
+    var name=interestName.trim().slice(0,60);
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      setInterestErr("Enter a valid email.");
+      return;
+    }
+    setInterestBusy(true);
+    setInterestErr("");
+    fetch("https://mlbtl26-default-rtdb.firebaseio.com/interest.json",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name:name,email:email,site:"mlbtl26",ts:{".sv":"timestamp"}})
+    }).then(function(r){
+      if(!r.ok)throw new Error("save");
+      try{localStorage.setItem("tl_interest","1")}catch(err){}
+      setInterestDone(true);
+      setInterestBusy(false);
+    }).catch(function(){
+      setInterestBusy(false);
+      setInterestErr("Couldn't save right now. Try again later.");
+    });
+  }
+
   var tabs=[{id:"standings",l:"Standings"},{id:"rosters",l:"Rosters"},{id:"draft",l:"Draft Room"},{id:"rules",l:"Rules"}];
 
   return (
@@ -457,6 +495,7 @@ function App(){
           <div>
             <div style={{color:G,fontSize:11,fontWeight:700,letterSpacing:4,textTransform:"uppercase",marginBottom:4}}>The Official</div>
             <h1 style={{color:"#fff",fontSize:32,fontWeight:900,margin:0,fontFamily:"'Playfair Display',serif"}}>MLB Team League <span style={{color:G}}>2026</span></h1>
+            <a href="#interest" style={{display:"inline-block",marginTop:6,fontSize:11,fontWeight:600,color:"#ffffff99",letterSpacing:0.3,textDecoration:"underline",textUnderlineOffset:3}}>Get updates</a>
           </div>
           <div style={{color:G,fontSize:12,fontWeight:600,letterSpacing:1,textAlign:"right"}}>
             DEFENDING CHAMP: RIPCITY 👑
@@ -966,6 +1005,23 @@ function App(){
           </div>
         </div>}
 
+        <form id="interest" noValidate onSubmit={submitInterest} style={{position:"relative",maxWidth:440,margin:"28px auto 8px",background:"#fff",border:"1px solid #E5E5E5",borderRadius:12,padding:"16px 16px 18px",scrollMarginTop:16}}>
+          <div style={{fontSize:18,fontWeight:800,color:N,fontFamily:"'Playfair Display',serif"}}>Want in next season?</div>
+          <p style={{fontSize:13,color:GY,lineHeight:1.5,margin:"6px 0 14px"}}>Get updates on new Team League games, the app, and how to join.</p>
+          {interestDone
+            ?<p role="status" style={{fontSize:14,fontWeight:700,color:GR,margin:0}}>You're on the list. Thanks!</p>
+            :<div>
+              <label htmlFor="interest-name" style={{display:"block",fontSize:11,fontWeight:700,color:N,marginBottom:4}}>Name <span style={{fontWeight:500,color:GY}}>(optional)</span></label>
+              <input id="interest-name" name="name" maxLength={60} autoComplete="name" value={interestName} onChange={function(e){setInterestName(e.target.value)}} style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:14,fontFamily:"'Libre Franklin',sans-serif",marginBottom:12}}/>
+              <label htmlFor="interest-email" style={{display:"block",fontSize:11,fontWeight:700,color:N,marginBottom:4}}>Email</label>
+              <input id="interest-email" name="email" type="email" required maxLength={120} autoComplete="email" inputMode="email" value={interestEmail} onChange={function(e){setInterestEmail(e.target.value)}} style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:14,fontFamily:"'Libre Franklin',sans-serif"}}/>
+              <label htmlFor="interest-website" aria-hidden="true" style={{position:"absolute",left:-10000,width:1,height:1,overflow:"hidden"}}>Website
+                <input id="interest-website" name="website" tabIndex={-1} autoComplete="off" value={interestHp} onChange={function(e){setInterestHp(e.target.value)}}/>
+              </label>
+              {interestErr?<p role="alert" style={{fontSize:12,color:RD,margin:"10px 0 0"}}>{interestErr}</p>:null}
+              <button type="submit" disabled={interestBusy} style={{display:"block",width:"100%",marginTop:14,background:interestBusy?MG:G,color:interestBusy?"#999":N,border:"none",borderRadius:8,padding:"12px 16px",fontSize:14,fontWeight:800,fontFamily:"'Libre Franklin',sans-serif"}}>Notify me</button>
+            </div>}
+        </form>
       </div>
 
       <div style={{textAlign:"center",padding:"12px 0 16px",fontSize:10,color:GY}}>MLB Team League 2026 - Est. 2015 - $225 Prize Pool - Defending Champ: Ripcity</div>
