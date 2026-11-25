@@ -10,6 +10,7 @@
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -50,8 +51,14 @@ h1{font-size:22px!important}
 <div id="root"></div>
 <!-- v4.0 wins-focused clean rebuild -->
 <script>
+// ADMIN_UID: replace MICHAEL_UID_PLACEHOLDER with Michael's Firebase Auth UID
+// after enabling Google sign-in (Authentication → Sign-in method → Google, then
+// Authentication → Users). Also add michaelrippe.github.io under
+// Authentication → Settings → Authorized domains. Until the placeholder is
+// replaced, nobody matches and the page does not write.
+var ADMIN_UID="MICHAEL_UID_PLACEHOLDER";
 firebase.initializeApp({apiKey:"AIzaSyC8UvEYET3uXzDNHBuOz_PoQj-pLUFEHDs",authDomain:"mlbtl26.firebaseapp.com",databaseURL:"https://mlbtl26-default-rtdb.firebaseio.com",projectId:"mlbtl26",storageBucket:"mlbtl26.firebasestorage.app",messagingSenderId:"609988607987",appId:"1:609988607987:web:7aaf6f783aad1392995c86"});
-var DB=firebase.database(),GAME=DB.ref("game");
+var DB=firebase.database(),GAME=DB.ref("game"),AUTH=firebase.auth();
 var ALL_TEAMS=["Angels","Astros","Athletics","Blue Jays","Braves","Brewers","Cardinals","Cubs","Diamondbacks","Dodgers","Giants","Guardians","Mariners","Marlins","Mets","Nationals","Orioles","Padres","Phillies","Pirates","Rangers","Rays","Red Sox","Reds","Rockies","Royals","Tigers","Twins","White Sox","Yankees"];
 var MNAMES=["G$","Swaggy","Gainzy","Ripcity"];
 var MGR_COLORS={"G$":"#2563EB","Swaggy":"#DC2626","Gainzy":"#059669","Ripcity":"#7C3AED"};
@@ -161,14 +168,12 @@ function App(){
   const[tab,setTabState]=React.useState(function(){var h=window.location.hash.replace("#","");if(h==="records"||h==="signup")h="standings";return["standings","rosters","draft","rules"].includes(h)?h:"standings"});
   function setTab(t){setTabState(t);window.location.hash=t}
   const[editRec,setEditRec]=React.useState(false);
-  const[recPwd,setRecPwd]=React.useState("");
   const[shareCaption,setShareCaption]=React.useState(null);
-  const recUnlocked=recPwd==="rippe26";
   const[anim,setAnim]=React.useState(false);
   const[shuffled,setShuffled]=React.useState(null);
   const[live,setLive]=React.useState(false);
-  const[adm,setAdm]=React.useState(false);
-  const[pwd,setPwd]=React.useState("");
+  const[authUser,setAuthUser]=React.useState(null);
+  const adminRef=React.useRef(false);
   const[chatMsgs,setChatMsgs]=React.useState([]);
   const[chatInput,setChatInput]=React.useState("");
   const[chatName,setChatName]=React.useState("");
@@ -214,8 +219,25 @@ function App(){
       })
     },100)
   }
-  const isAdm=pwd==="rippe26";
+  const isAdmin=!!(authUser&&authUser.uid===ADMIN_UID);
+  adminRef.current=isAdmin;
   const N="#1B2A4A",G="#C9A84C",LG="#FFF8E7",LN="#E8EDF4",GR="#2E7D32",RD="#C62828",GY="#6B7280",MG="#D1D5DB";
+
+  function signInGoogle(){
+    var provider=new firebase.auth.GoogleAuthProvider();
+    var mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||"");
+    if(mobile){AUTH.signInWithRedirect(provider);return}
+    AUTH.signInWithPopup(provider).catch(function(err){
+      if(err&&err.code==="auth/popup-closed-by-user")return;
+      AUTH.signInWithRedirect(provider);
+    });
+  }
+  function signOutGoogle(){AUTH.signOut()}
+
+  React.useEffect(function(){
+    AUTH.getRedirectResult().catch(function(){});
+    return AUTH.onAuthStateChanged(function(u){setAuthUser(u||null)});
+  },[]);
 
   React.useEffect(function(){
     GAME.on("value",function(snap){
@@ -229,8 +251,8 @@ function App(){
           prevPC.current=ns.draftPicks.reduce(function(a,b){return a+b.length},0);
         }catch(e){console.error("norm error:",e);setState(norm(defData()));setLive(true)}
       }else{
-        // Never seed or overwrite the database once the season is final.
-        if(seasonPhase()==="live")GAME.set(defData());
+        // Visitors never seed the database. Admins only while the season is live.
+        if(seasonPhase()==="live"&&adminRef.current)GAME.set(defData());
         setState(norm(defData()));setLive(true)
       }
     });
@@ -251,24 +273,24 @@ function App(){
   // Auto weekly snapshot - runs once per Monday
   React.useEffect(function(){
     if(!state||!state.draftLocked||weekSaved.current)return;
-    if(seasonPhase()!=="live")return;
+    if(seasonPhase()!=="live"||!isAdmin)return;
     var now=new Date();if(now.getDay()!==1)return;
     var ls=state.prevRankingsDate||"";var td=now.toISOString().slice(0,10);
     if(ls===td)return;
     var mgList=cMgrs(state.managers);var recs=cRecs(state.records);
     var ranked2=[].concat(mgList).map(function(m){var tw=0;(m.teams||[]).forEach(function(t){tw+=(recs[t]||{w:0}).w});return{name:m.name,tw:tw}}).sort(function(a,b){return b.tw-a.tw});
     if(ranked2[0]&&ranked2[0].tw>0){weekSaved.current=true;var sn={};ranked2.forEach(function(m,i){sn[fbKey(m.name)]=i+1});GAME.update({prevRankings:sn,prevRankingsDate:td})}
-  },[state&&state.draftLocked]);
+  },[state&&state.draftLocked,isAdmin]);
 
-  // Auto-sync MLB standings every 30 min
-  var syncRef=React.useRef(false);
+  // Auto-sync MLB standings every 30 min. Writes only for the signed-in admin, and only in-season.
   React.useEffect(function(){
     function doSync(){
       // Finals are frozen after Sep 27, 2026. A visit must not fetch or write standings.
-      if(seasonPhase()!=="live")return;
+      if(seasonPhase()!=="live"||!adminRef.current)return;
       setSyncing(true);
       console.log("MLB sync starting...");
       fetchMLBStandings().then(function(records){
+        if(seasonPhase()!=="live"||!adminRef.current){setSyncing(false);return}
         var hasData=ALL_TEAMS.some(function(t){return records[t]&&(records[t].w>0||records[t].l>0)});
         console.log("MLB sync result - hasData:",hasData,records);
         if(hasData){
@@ -278,14 +300,14 @@ function App(){
         setSyncing(false);
       }).catch(function(e){console.log("MLB sync error:",e);setSyncing(false)});
     }
-    if(seasonPhase()!=="live")return;
-    if(!syncRef.current){syncRef.current=true;doSync()}
-    var id=setInterval(doSync,30*60*1000); // every 30 min, and only while the season is live
+    if(seasonPhase()!=="live"||!isAdmin)return;
+    doSync();
+    var id=setInterval(doSync,30*60*1000); // every 30 min, admin only, while the season is live
     return function(){clearInterval(id)}
-  },[]);
+  },[isAdmin]);
 
   function manualSync(){
-    if(seasonPhase()!=="live")return;
+    if(seasonPhase()!=="live"||!isAdmin)return;
     setSyncing(true);
     fetchMLBStandings().then(function(records){
       var hasData=ALL_TEAMS.some(function(t){return records[t]&&(records[t].w>0||records[t].l>0)});
@@ -325,6 +347,7 @@ function App(){
   },[]);
 
   function push(up){
+    if(!isAdmin)return;
     var safe={};Object.keys(up).forEach(function(k){safe[k]=up[k]});
     if(safe.draftPicks)safe.draftPicks=safe.draftPicks.map(function(a){return a.length===0?["_"]:a});
     if(safe.managers)safe.managers=safe.managers.map(function(m){return{name:m.name,teams:m.teams.length===0?["_"]:m.teams,wsPick:m.wsPick||""}});
@@ -399,12 +422,13 @@ function App(){
       if(ct>=15){clearInterval(si);var f=[0,1,2,3];for(var i=3;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=f[i];f[i]=f[j];f[j]=tmp}setShuffled(f);push({draftOrder:f,namesLocked:true});setTimeout(function(){setAnim(false)},500)}
     },120)
   }
-  function undo(){if(!isAdm)return;var pP=dp-1,pR=dr;if(pP<0){pP=3;pR--}if(pR<0)return;var who=snk[pR][pP];var np=dpk.map(function(a){return[].concat(a)});if(!np[who]||np[who].length===0)return;np[who].pop();push({draftPicks:np,draftPick:pP,draftRound:pR})}
-  function saveWeek(){if(!isAdm)return;var sn={};dR.forEach(function(m,i){sn[fbKey(m.name)]=i+1});push({prevRankings:sn,prevRankingsDate:new Date().toISOString().slice(0,10)})}
+  function undo(){if(!isAdmin)return;var pP=dp-1,pR=dr;if(pP<0){pP=3;pR--}if(pR<0)return;var who=snk[pR][pP];var np=dpk.map(function(a){return[].concat(a)});if(!np[who]||np[who].length===0)return;np[who].pop();push({draftPicks:np,draftPick:pP,draftRound:pR})}
+  function saveWeek(){if(!isAdmin)return;var sn={};dR.forEach(function(m,i){sn[fbKey(m.name)]=i+1});push({prevRankings:sn,prevRankingsDate:new Date().toISOString().slice(0,10)})}
   function setDMgr(i,v){if(nlk)return;var nm=[].concat(dmg);nm[i]=v;push({draftManagers:nm})}
   function setRc(t,f,v){var nr={};ALL_TEAMS.forEach(function(x){nr[x]={w:rc[x].w,l:rc[x].l}});nr[t][f]=parseInt(v)||0;push({records:nr})}
 
   function sendChat(){
+    if(!isAdmin)return;
     if(!chatInput.trim()||!chatName.trim())return;
     DB.ref("chat").push({name:chatName.trim(),msg:chatInput.trim(),ts:Date.now()});
     setChatInput("");
@@ -412,6 +436,7 @@ function App(){
   }
 
   function submitSignup(){
+    if(!isAdmin)return;
     if(!signName.trim()||!signEmail.trim())return;
     DB.ref("signups").push({name:signName.trim(),email:signEmail.trim(),leagues:signLeagues,ts:Date.now()});
     setSignSent(true);
@@ -421,6 +446,7 @@ function App(){
   }
 
   function toggleLeague(lg){
+    if(!isAdmin)return;
     if(signLeagues.includes(lg))setSignLeagues(signLeagues.filter(function(x){return x!==lg}));
     else setSignLeagues([].concat(signLeagues,[lg]));
   }
@@ -438,6 +464,11 @@ function App(){
           <div style={{color:G,fontSize:12,fontWeight:600,letterSpacing:1,textAlign:"right"}}>
             DEFENDING CHAMP: RIPCITY 👑
             <div style={{fontSize:10,color:"#ffffff80",marginTop:2}}>Est. 2015{" "}<span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:live?GR:RD,marginLeft:6,animation:"pulse 2s infinite"}}/><span style={{color:live?"#4CAF50":RD,fontSize:9,fontWeight:700,marginLeft:4}}>{live?"LIVE":""}</span></div>
+            <div style={{marginTop:6}}>
+              {authUser
+                ?<button onClick={signOutGoogle} style={{background:"transparent",border:"1px solid #ffffff55",color:"#fff",borderRadius:6,padding:"4px 10px",fontSize:10,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>Sign out</button>
+                :<button onClick={signInGoogle} style={{background:"transparent",border:"1px solid "+G,color:G,borderRadius:6,padding:"4px 10px",fontSize:10,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>Sign in with Google</button>}
+            </div>
           </div>
         </div>
         {(function(){
@@ -517,7 +548,7 @@ function App(){
             {seasonPhase()==="final"
               ?<span style={{fontSize:10,color:GY,fontWeight:700}}>2026 finals locked</span>
               :<span style={{fontSize:10,color:syncing?G:GY}}>{syncing?"Syncing MLB data...":lastSync?"Live MLB data - updated "+lastSync:"Live MLB data"}</span>}
-            {seasonPhase()==="live"&&<button onClick={manualSync} disabled={syncing} style={{background:syncing?MG:N,color:syncing?"#999":"#fff",border:"none",borderRadius:6,padding:"5px 14px",fontSize:10,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>{syncing?"...":"SYNC NOW"}</button>}
+            {seasonPhase()==="live"&&isAdmin&&<button onClick={manualSync} disabled={syncing} style={{background:syncing?MG:N,color:syncing?"#999":"#fff",border:"none",borderRadius:6,padding:"5px 14px",fontSize:10,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>{syncing?"...":"SYNC NOW"}</button>}
           </div>
           <div style={{background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",overflowX:"auto"}} ref={standingsRef}>
             <div style={{background:N,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -617,7 +648,7 @@ function App(){
                 </div>
               })}
             </div>
-            <div style={{padding:"10px 16px",borderTop:"1px solid #E5E5E5"}}>
+            {isAdmin&&<div style={{padding:"10px 16px",borderTop:"1px solid #E5E5E5"}}>
               {!chatName.trim()?
                 <div style={{display:"flex",gap:8}}>
                   <input value={chatName} onChange={function(e){setChatName(e.target.value)}} placeholder="Enter your name to chat..." style={{flex:1,padding:"8px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:12,fontFamily:"'Libre Franklin',sans-serif"}}/>
@@ -627,7 +658,7 @@ function App(){
                   <input value={chatInput} onChange={function(e){setChatInput(e.target.value)}} onKeyDown={function(e){if(e.key==="Enter")sendChat()}} placeholder="Talk trash..." style={{flex:1,padding:"8px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:12,fontFamily:"'Libre Franklin',sans-serif"}}/>
                   <button onClick={sendChat} style={{background:G,color:N,border:"none",borderRadius:6,padding:"8px 16px",fontSize:11,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>SEND</button>
                 </div>}
-            </div>
+            </div>}
           </div>
         </div>}
 
@@ -654,9 +685,7 @@ function App(){
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div style={{fontSize:11,fontWeight:700,color:N,letterSpacing:1.5}}>MLB STANDINGS BY DIVISION</div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
-              {!recUnlocked&&!editRec?
-                <input type="password" placeholder="Admin password" value={recPwd} onChange={function(e){setRecPwd(e.target.value)}} style={{padding:"5px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:10,width:120,fontFamily:"'Libre Franklin',sans-serif"}}/>:null}
-              {recUnlocked?
+              {isAdmin?
                 <button onClick={function(){setEditRec(!editRec)}} style={{background:editRec?GR:N,color:"#fff",border:"none",padding:"6px 16px",fontSize:11,fontWeight:700,borderRadius:6,fontFamily:"'Libre Franklin',sans-serif"}}>{editRec?"Done":"Edit"}</button>:null}
             </div>
           </div>
@@ -699,15 +728,12 @@ function App(){
         </div>}
 
         {tab==="draft"&&<div>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
-            {!adm?<button onClick={function(){setAdm(true)}} style={{background:"#fff",border:"1px solid #CCC",borderRadius:6,padding:"8px 14px",fontSize:11,color:GY,fontFamily:"'Libre Franklin',sans-serif"}}>Admin</button>:
-            <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",background:"#fff",borderRadius:8,border:"1px solid "+RD}}>
-              <span style={{fontSize:11,fontWeight:700,color:RD}}>ADMIN</span>
-              {!isAdm?<input type="password" placeholder="Password" value={pwd} onChange={function(e){setPwd(e.target.value)}} style={{padding:"6px 10px",border:"1px solid #DDD",borderRadius:6,fontSize:12,width:120,fontFamily:"'Libre Franklin',sans-serif"}}/>:
-              <div style={{display:"flex",gap:6}}><button onClick={undo} style={{background:RD,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>UNDO PICK</button><button onClick={saveWeek} style={{background:N,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>SAVE WEEK</button></div>}
-              <button onClick={function(){setAdm(false);setPwd("")}} style={{background:"transparent",border:"none",fontSize:14,color:GY}}>x</button>
-            </div>}
-          </div>
+          {isAdmin&&<div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={undo} style={{background:RD,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>UNDO PICK</button>
+              <button onClick={saveWeek} style={{background:N,color:"#fff",border:"none",borderRadius:6,padding:"8px 16px",fontSize:12,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>SAVE WEEK</button>
+            </div>
+          </div>}
 
           <div className="draft-layout" style={{display:"flex",gap:12,alignItems:"stretch"}}>
             {/* LEFT - DRAFT CONTENT */}
@@ -856,7 +882,7 @@ function App(){
               {icon:"07",title:"COMMISSIONER",items:[
                 "The Commissioner manages the league, updates win/loss records, and resolves any disputes.",
                 "Commissioner has admin access to edit records, undo picks, and save weekly snapshots.",
-                "All admin actions are password-protected.",
+                "All admin actions require the commissioner's Google sign-in.",
                 "Commissioner: Mike Rippe (@michaelrippe)"
               ]},
               {icon:"08",title:"LEAGUE HISTORY",items:[
@@ -904,30 +930,30 @@ function App(){
           <div style={{marginTop:24,background:"#fff",borderRadius:12,overflow:"hidden",border:"1px solid #E5E5E5",marginBottom:24}}>
             <div style={{background:N,padding:"12px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{color:"#fff",fontSize:12,fontWeight:700}}>COMING SOON - MORE LEAGUES</span>
-              <span style={{color:G,fontSize:9}}>SIGN UP FOR EARLY ACCESS</span>
+              {isAdmin&&<span style={{color:G,fontSize:9}}>SIGN UP FOR EARLY ACCESS</span>}
             </div>
             <div style={{padding:"16px 20px"}}>
               <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap",justifyContent:"center"}}>
                 {[
                   {name:"NFL",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nfl.png&w=100",when:"Fall 2026"},
                   {name:"NBA",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nba.png&w=100",when:"Fall 2026"},
-                  {name:"World Cup",logo:"https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/2026_FIFA_World_Cup_logo.svg/250px-2026_FIFA_World_Cup_logo.svg.png",when:"Summer 2026"},
+                  {name:"World Cup",logo:"",when:"Summer 2026"},
                   {name:"NHL",logo:"https://a.espncdn.com/combiner/i?img=/i/teamlogos/leagues/500/nhl.png&w=100",when:"2027"}
                 ].map(function(lg){
                   var sel=signLeagues.includes(lg.name);
-                  return <div key={lg.name} onClick={function(){toggleLeague(lg.name)}} style={{textAlign:"center",padding:"12px 16px",borderRadius:10,border:sel?"2px solid "+G:"1px solid #E5E5E5",cursor:"pointer",minWidth:80}}>
-                    <img src={lg.logo} alt={lg.name} style={{width:36,height:36,objectFit:"contain",marginBottom:4}} onError={function(e){e.target.style.display="none"}}/>
+                  return <div key={lg.name} onClick={isAdmin?function(){toggleLeague(lg.name)}:undefined} style={{textAlign:"center",padding:"12px 16px",borderRadius:10,border:sel?"2px solid "+G:"1px solid #E5E5E5",cursor:isAdmin?"pointer":"default",minWidth:80}}>
+                    {lg.logo?<img src={lg.logo} alt={lg.name} style={{width:36,height:36,objectFit:"contain",marginBottom:4}} onError={function(e){e.target.style.display="none"}}/>:<div style={{fontSize:22,marginBottom:4}}>{"\u26BD"}</div>}
                     <div style={{fontSize:11,fontWeight:700,color:N}}>{lg.name}</div>
                     <div style={{fontSize:8,color:sel?GR:GY}}>{sel?"SELECTED":lg.when}</div>
                   </div>
                 })}
               </div>
-              {signSent?<div style={{textAlign:"center",padding:"12px",fontSize:13,color:GR,fontWeight:600}}>You're on the list!</div>:
+              {isAdmin&&(signSent?<div style={{textAlign:"center",padding:"12px",fontSize:13,color:GR,fontWeight:600}}>You're on the list!</div>:
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <input value={signName} onChange={function(e){setSignName(e.target.value)}} placeholder="Name" style={{flex:1,minWidth:100,padding:"8px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:12,fontFamily:"'Libre Franklin',sans-serif"}}/>
                 <input value={signEmail} onChange={function(e){setSignEmail(e.target.value)}} placeholder="Email" type="email" style={{flex:2,minWidth:150,padding:"8px 12px",border:"1px solid #DDD",borderRadius:6,fontSize:12,fontFamily:"'Libre Franklin',sans-serif"}}/>
                 <button onClick={submitSignup} disabled={!signName.trim()||!signEmail.trim()} style={{background:signName.trim()&&signEmail.trim()?G:MG,color:signName.trim()&&signEmail.trim()?N:"#999",border:"none",borderRadius:6,padding:"8px 20px",fontSize:11,fontWeight:700,fontFamily:"'Libre Franklin',sans-serif"}}>SIGN UP</button>
-              </div>}
+              </div>)}
             </div>
           </div>
 
