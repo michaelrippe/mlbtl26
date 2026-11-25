@@ -51,12 +51,9 @@ h1{font-size:22px!important}
 <div id="root"></div>
 <!-- v4.0 wins-focused clean rebuild -->
 <script>
-// ADMIN_UID: replace MICHAEL_UID_PLACEHOLDER with Michael's Firebase Auth UID
-// after enabling Google sign-in (Authentication → Sign-in method → Google, then
-// Authentication → Users). Also add michaelrippe.github.io under
-// Authentication → Settings → Authorized domains. Until the placeholder is
-// replaced, nobody matches and the page does not write.
-var ADMIN_UID="MICHAEL_UID_PLACEHOLDER";
+// ADMIN_UID is Michael's Firebase Auth UID. Google sign-in must be enabled,
+// and michaelrippe.github.io must be an authorized domain. Only this UID can write.
+var ADMIN_UID="cl98lGHlG5Rs4BEaPDaerl1U1QN2";
 firebase.initializeApp({apiKey:"AIzaSyC8UvEYET3uXzDNHBuOz_PoQj-pLUFEHDs",authDomain:"mlbtl26.firebaseapp.com",databaseURL:"https://mlbtl26-default-rtdb.firebaseio.com",projectId:"mlbtl26",storageBucket:"mlbtl26.firebasestorage.app",messagingSenderId:"609988607987",appId:"1:609988607987:web:7aaf6f783aad1392995c86"});
 var DB=firebase.database(),GAME=DB.ref("game"),AUTH=firebase.auth();
 var ALL_TEAMS=["Angels","Astros","Athletics","Blue Jays","Braves","Brewers","Cardinals","Cubs","Diamondbacks","Dodgers","Giants","Guardians","Mariners","Marlins","Mets","Nationals","Orioles","Padres","Phillies","Pirates","Rangers","Rays","Red Sox","Reds","Rockies","Royals","Tigers","Twins","White Sox","Yankees"];
